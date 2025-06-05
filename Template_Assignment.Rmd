@@ -1,0 +1,158 @@
+---
+title: "Template"
+author: "Studentnames and studentnumbers here"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+# Set-up your environment
+
+```{r package_install, include=FALSE}
+install.packages("tidyverse")
+```
+
+```{r packages}
+require(tidyverse)
+```
+
+# Title Page
+
+Include your names
+
+Include the tutorial group number
+
+Include your tutorial lecturer's name
+
+# Part 1 - Identify a Social Problem
+
+Use APA referencing throughout your document. [Here's a link to some explanation.](https://www.mendeley.com/guides/apa-citation-guide/)
+
+## 1.1 Describe the Social Problem
+
+Include the following:
+
+-   Why is this relevant?
+
+-   ...
+
+# Part 2 - Data Sourcing
+
+## 2.1 Load in the data
+
+Preferably from a URL, but if not, make sure to download the data and store it in a shared location that you can load the data in from. Do not store the data in a folder you include in the Github repository!
+
+```{r loading_data}
+dataset <- midwest
+```
+
+midwest is an example dataset included in the tidyverse package
+
+## 2.2 Provide a short summary of the dataset(s)
+
+```{r}
+head(dataset)
+```
+
+In this case we see 28 variables, but we miss some information on what units they are in. We also don't know anything about the year/moment in which this data has been captured.
+
+``` r
+inline_code = TRUE
+```
+
+These are things that are usually included in the metadata of the dataset. For your project, you need to provide us with the information from your metadata that we need to understand your dataset of choice.
+
+## 2.3 Describe the type of variables included
+
+Think of things like:
+
+-   Do the variables contain health information or SES information?
+
+-   Have they been measured by interviewing individuals or is the data coming from administrative sources?
+
+*For the sake of this example, I will continue with the assignment...*
+
+# Part 3 - Quantifying
+
+## 3.1 Data cleaning
+
+Say we want to include only larger distances (above 2) in our dataset, we can filter for this.
+
+```{r data_cleaning}
+mean(dataset$percollege)
+```
+
+Please use a separate 'R block' of code for each type of cleaning. So, e.g. one for missing values, a new one for removing unnecessary variables etc.
+
+## 3.2 Generate necessary variables
+
+Variable 1
+
+```{r gen_var1}
+
+```
+
+Variable 2
+
+```{r gen_var2}
+
+```
+
+## 3.3 Visualize temporal variation
+
+```{r}
+
+```
+
+## 3.4 Visualize spatial variation
+
+```{r visualise_map}
+
+```
+
+Here you provide a description of why the plot above is relevant to your specific social problem.
+
+## 3.5 Visualize sub-population variation
+
+What is the poverty rate by state?
+
+```{r visualise_subpopulations}
+dataset$inmetro <- dataset$inmetro %>% as.factor()
+# Boxplot of poverty rate by state using the 'midwest' dataset
+ggplot(dataset, aes(x = inmetro, y = percadultpoverty)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribution of Poverty Rates by Metropolitan status (Midwest counties)",
+    x = "Metropolitan Area",
+    y = "Poverty Rate of Adults (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right"
+  )
+```
+
+Here you provide a description of why the plot above is relevant to your specific social problem.
+
+## 3.6 Event analysis
+
+Analyze the relationship between two variables.
+
+```{r analysis}
+
+```
+
+Here you provide a description of why the plot above is relevant to your specific social problem.
+
+# Part 4 - Discussion
+
+## 4.1 Discuss your findings
+
+# Part 5 - Reproducibility
+
+## 5.1 Github repository link
+
+Provide the link to your PUBLIC repository here: ...
+
+## 5.2 Reference list
+
+Use APA referencing throughout your document.
