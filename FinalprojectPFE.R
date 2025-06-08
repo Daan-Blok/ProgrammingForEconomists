@@ -54,6 +54,30 @@ province_map <- c(
   "nl01" = "Nederland"
 )
 
+# Rename Leeftijd codes to leeftijdgroepen
+age_map <- c(
+  "70100" = "0-4",
+  "70200" = "5-9",
+  "70300" = "10-14",
+  "70400" = "15-19",
+  "70500" = "20-24",
+  "70600" = "25-29",
+  "70700" = "30-34",
+  "70800" = "35-39",
+  "70900" = "40-44",
+  "71000" = "45-49",
+  "71100" = "50-54",
+  "71200" = "55-59",
+  "71300" = "60-64",
+  "71400" = "65-69",
+  "71500" = "70-74",
+  "71600" = "75-79",
+  "71700" = "80-84",
+  "71800" = "85-89",
+  "71900" = "90-94",
+  "22000" = "95+"
+)
+
 merged_df <- merged_df %>%
   mutate(RegioS = recode(RegioS, !!!province_map))
 
@@ -192,15 +216,78 @@ p6 <- merged_df %>%
 
 print(p6)
 
-#Variable house prijs increase vs inkomen increase
-#Variable living on themselves 
-#plot mensen die opzich wonen per leeftijdsgroep
+# =========================
+# Plot 7: Indexed Change Since 2011 (2011 = 100)
+# =========================
+index_df <- merged_df %>%
+  filter(RegioS == "Nederland", KenmerkenVanHuishoudens == 1050010, str_detect(Perioden, "^\\d{4}jj00$")) %>%
+  mutate(Jaar = as.integer(str_sub(Perioden, 1, 4))) %>%
+  arrange(Jaar) %>%
+  filter(Jaar >= 2011) %>%
+  mutate(
+    HousePriceIndex = 100 * GemiddeldeVerkoopprijs_1 / GemiddeldeVerkoopprijs_1[Jaar == 2011],
+    IncomeLevelIndex = 100 * GemiddeldGestandaardiseerdInkomen_3 / GemiddeldGestandaardiseerdInkomen_3[Jaar == 2011],
+    RatioHousingPriceIncomeLevel = HousePriceIndex / IncomeLevelIndex
+  )
+
+p7 <- ggplot(index_df, aes(x = Jaar)) +
+  geom_line(aes(y = HousePriceIndex, color = "House Price Index"), linewidth = 1.2) +
+  geom_line(aes(y = IncomeLevelIndex, color = "Income Level Index"), linewidth = 1.2) +
+  scale_color_manual(values = c("House Price Index" = "darkred", "Income Level Index" = "darkgreen")) +
+  labs(
+    title = "Indexed Change Since 2011: House Prices vs. Income (NL01)",
+    x = "Year",
+    y = "Index (2011 = 100)",
+    color = "Legend"
+  ) +
+  scale_x_continuous(breaks = seq(2011, max(index_df$Jaar), 1)) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p7)
+
+# =========================
+# Plot 8: Ratio of House Price Change to Income Change
+# =========================
+p8 <- ggplot(index_df, aes(x = Jaar, y = RatioHousingPriceIncomeLevel)) +
+  geom_line(color = "purple", linewidth = 1.2) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray") +
+  scale_y_continuous(name = "Price/Income Change Ratio") +
+  scale_x_continuous(breaks = seq(2011, max(index_df$Jaar), 1)) +
+  labs(
+    title = "Ratio of House Price Change to Income Change (NL01)",
+    x = "Year"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p8)
+
+p9 <- merged_df %>%
+  filter(RegioS == "Nederland", Perioden == "2024jj00", Leeftijd %in% names(age_map), Geslacht == "T001038") %>%
+  mutate(
+    AgeGroup = age_map[as.character(Leeftijd)],
+    living_on_themselves = 100 * (Alleenstaand_4 + TotaalSamenwonendePersonen_5) / TotaalPersonenInHuishoudens_1
+  ) %>%
+  filter(!is.na(living_on_themselves), !is.na(AgeGroup)) %>%
+  mutate(AgeGroup = factor(AgeGroup, levels = age_map)) %>%
+  ggplot(aes(x = AgeGroup, y = living_on_themselves, group = 1)) +  # group = 1 to ensure line connects points
+  geom_line(color = "blue", linewidth = 1.2, na.rm = TRUE) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_discrete() +  # Use this for factors
+  labs(
+    title = "Percentage Living in their own house by Age Group (NL01, 2024)",
+    x = "Age Group", y = "Living in their own house (%)"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p9)
+
 #plot mensen met eigen huis inkomen vs mensen huurwoning zonder toeslag vs mensen huurwoning met toeslag
-#plot iets die population splitsing doen maar lastig te bedenken
+#plot iets die population splitsing doen maar lastig te bedenken, wss mensen koophuis inkomen wat hierboven staat
 #kan nog OLS gooien op de time series voor extrepolatie
 #zelfde voor inkomen OLS kan ook en dan zeggen gat gaat alleen maar groter worden tussen de twee
 #OLS wss niet de beste aangezien de lijnen absoluut niet linear zijn dus wss ramsey reset niet doorkomen dus die ook checken, heteroskedacity, normality, exogeneity. niet aanpassen gewoon zeggen als de test dat aangeeft dat het niet zo is dus de estimate wss niet super accuraat is.
 #wellicht gemeente ook nog inkomen en huizenprijzen voor doen
-
-
-
+#einde alle code even mooi maken en efficient
