@@ -285,7 +285,6 @@ print(p2)
   print(p9)
 
   #plot mensen met eigen huis inkomen vs mensen huurwoning zonder toeslag vs mensen huurwoning met toeslag
-  #plot iets die population splitsing doen maar lastig te bedenken, wss mensen koophuis inkomen wat hierboven staat
   #kan nog OLS gooien op de time series voor extrepolatie
   #zelfde voor inkomen OLS kan ook en dan zeggen gat gaat alleen maar groter worden tussen de twee
   #OLS wss niet de beste aangezien de lijnen absoluut niet linear zijn dus wss ramsey reset niet doorkomen dus die ook checken, heteroskedacity, normality, exogeneity. niet aanpassen gewoon zeggen als de test dat aangeeft dat het niet zo is dus de estimate wss niet super accuraat is.
