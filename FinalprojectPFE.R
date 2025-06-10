@@ -263,29 +263,42 @@ p8 <- ggplot(index_df, aes(x = Jaar, y = RatioHousingPriceIncomeLevel)) +
 
 print(p8)
 
+years_to_plot <- c("2024jj00", "2014jj00", "2004jj00")
+
 p9 <- merged_df %>%
-  filter(RegioS == "Nederland", Perioden == "2024jj00", Leeftijd %in% names(age_map), Geslacht == "T001038") %>%
+  filter(
+    RegioS == "Nederland",
+    Perioden %in% years_to_plot,
+    Leeftijd %in% names(age_map),
+    Geslacht == "T001038"
+  ) %>%
   mutate(
     AgeGroup = age_map[as.character(Leeftijd)],
+    Year = substr(Perioden, 1, 4),
     living_on_themselves = 100 * (Alleenstaand_4 + TotaalSamenwonendePersonen_5) / TotaalPersonenInHuishoudens_1
   ) %>%
   filter(!is.na(living_on_themselves), !is.na(AgeGroup)) %>%
-  mutate(AgeGroup = factor(AgeGroup, levels = age_map)) %>%
-  ggplot(aes(x = AgeGroup, y = living_on_themselves, group = 1)) +  # group = 1 to ensure line connects points
-  geom_line(color = "blue", linewidth = 1.2, na.rm = TRUE) +
+  mutate(
+    AgeGroup = factor(AgeGroup, levels = age_map),
+    Year = factor(Year, levels = sort(unique(substr(years_to_plot, 1, 4))))
+  ) %>%
+  ggplot(aes(x = AgeGroup, y = living_on_themselves, color = Year, group = Year)) +
+  geom_line(linewidth = 0.5, na.rm = TRUE) +
   scale_y_continuous(labels = scales::comma) +
-  scale_x_discrete() +  # Use this for factors
+  scale_x_discrete() +
   labs(
-    title = "Percentage Living in their own house by Age Group (NL01, 2024)",
-    x = "Age Group", y = "Living in their own house (%)"
+    title = "Percentage Living in their own House by Age Group (NL01, Selected Years)",
+    x = "Age Group",
+    y = "Living in their own house (%)",
+    color = "Year"
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 print(p9)
 
+
 #plot mensen met eigen huis inkomen vs mensen huurwoning zonder toeslag vs mensen huurwoning met toeslag
-#plot iets die population splitsing doen maar lastig te bedenken, wss mensen koophuis inkomen wat hierboven staat
 #kan nog OLS gooien op de time series voor extrepolatie
 #zelfde voor inkomen OLS kan ook en dan zeggen gat gaat alleen maar groter worden tussen de twee
 #OLS wss niet de beste aangezien de lijnen absoluut niet linear zijn dus wss ramsey reset niet doorkomen dus die ook checken, heteroskedacity, normality, exogeneity. niet aanpassen gewoon zeggen als de test dat aangeeft dat het niet zo is dus de estimate wss niet super accuraat is.
