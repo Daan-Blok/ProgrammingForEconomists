@@ -8,11 +8,11 @@ date: "2025-06-11"
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## R Markdown
+**Part 1 - Identify a Social Problem**
 
-This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+The housing market in the Netherlands is currently facing significant problems, especially for young people. There are long waiting lists for rental housing, and in addition, there are high rental prices in the private sector. The prices of owner-occupied homes have risen sharply in recent years, making it increasingly difficult for young people and young adults to find affordable housing (Wat Zijn Gevolgen van de Onzekere Woningmarkt Voor Jongeren? \| Nederlands Jeugdinstituut, z.d.-b). This has led to a historic low in the number of young people who have purchased a home. According to the CBS, there is a shortage of approximately 315,000 homes in the Netherlands (CBS Statline, z.d.). The research by Wiesel et al. (2021) highlights that there are significant differences between generations regarding income inequality. Baby boomers have benefited from relatively affordable housing, while younger generations, such as Generation X and millennials, face greater challenges in covering housing costs. This has direct implications for their economic opportunities. The rising house prices and increasing housing costs have contributed to the growing inequality in the housing market. Households with middle incomes are also experiencing increasing problems. Many of these households fall between the cracks, as their income is too high for social rental housing but too low for the private rental market. This results in limited access to affordable housing (Schilder et al., z.d.-b). Although the social rental sector in the Netherlands offers affordable rents in absolute terms, the pressure on this sector is increasing, particularly due to the growing number of households that rely on social housing (Schilder et al., z.d.-b). The combination of these factors makes the situation in the housing market particularly urgent and calls for attention from policymakers to address the issues and ensure access to affordable housing for young people and other vulnerable groups.
 
-When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+**This leads to the following social problem: Access to affordable housing for vulnerable groups.**
 
 ```{r cars}
 summary(cars)
