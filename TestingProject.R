@@ -1,5 +1,9 @@
 library(tidyverse)
 library(scales)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
 
 # Load datasets
 df1 <- read_delim("71488ned_UntypedDataSet_05062025_175816.csv", delim = ";", show_col_types = FALSE)
@@ -95,22 +99,44 @@ print(head(merged_df, 10))
 # =========================
 # Plot 1: National level (NL01)
 # =========================
-p1 <- merged_df %>%
+# Prepare the data
+df_nl <- merged_df %>%
   filter(RegioS == "Nederland", str_detect(Perioden, "^\\d{4}jj00$")) %>%
-  mutate(Jaar = as.integer(str_sub(Perioden, 1, 4))) %>%
-  drop_na(GemiddeldeVerkoopprijs_1) %>%
-  ggplot(aes(x = Jaar, y = GemiddeldeVerkoopprijs_1 / 1000)) +
-  geom_line(color = "blue", linewidth = 1.2, na.rm = TRUE) +
-  scale_y_continuous(name = "House Price (€ x 1,000)") +
-  scale_x_continuous(breaks = seq(1995, 2024, 2)) +
+  mutate(
+    Jaar = as.integer(str_sub(Perioden, 1, 4)),
+    PrijsK = GemiddeldeVerkoopprijs_1 / 1000
+  ) %>%
+  drop_na(PrijsK)
+
+# Fit log-linear model: log(price) ~ year
+model <- lm(log(PrijsK) ~ Jaar, data = df_nl)
+model_linear <- lm(PrijsK ~ Jaar, data = df_nl)
+
+# Create future data frame for prediction up to 2034
+future_years <- data.frame(Jaar = 1995:2034)
+future_years$PredictedLog <- predict(model, newdata = future_years)
+future_years$PredictedPrijsK <- exp(future_years$PredictedLog)
+future_years$LinearPredicted <- predict(model_linear, newdata = future_years)
+
+# Plot actual and predicted
+p1 <- ggplot(df_nl, aes(x = Jaar, y = PrijsK)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_line(data = future_years, aes(x = Jaar, y = PredictedPrijsK),
+            color = "red", linetype = "dashed", linewidth = 1.1) +
+  geom_line(data = future_years, aes(x = Jaar, y = LinearPredicted),
+            color = "green", linetype = "dotted", linewidth = 1.1) +
+  scale_y_continuous(name = "House Price (€ x 1,000)", breaks = seq(0, 700, 100)) +
+  scale_x_continuous(breaks = seq(1995, 2034, 2), limits = c(1995, 2034)) +
   labs(
-    title = "Average House Prices – Netherlands Total (NL01)",
+    title = "Average House Prices – Netherlands Total (NL01) with Exponential Forecast",
     x = "Year"
   ) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 print(p1)
+print(summary(model))
+print(summary(model_linear))
 
 # =========================
 # Plot 2: Provinces PV20–PV31
