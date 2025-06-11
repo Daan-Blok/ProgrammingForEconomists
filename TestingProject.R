@@ -124,7 +124,7 @@ gls_model <- gls(
   PrijsK ~ Jaar,
   data = df_nl,
   correlation = corAR1(form = ~ TimeIndex | Group),
-  method = "ML",  
+  method = "REML",  #ML kan ook maar langzamer morgen kijken of newey west standard errors beter werkt aangezien dit lang duurt om te berekenen en lelijk.
   control = glsControl(
     tolerance = 10,     # Convergence tolerance
     msVerbose = TRUE      # Show progress (optional)
