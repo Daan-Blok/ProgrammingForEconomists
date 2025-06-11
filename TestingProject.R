@@ -4,6 +4,9 @@ library(dplyr)
 library(ggplot2)
 library(stringr)
 library(tidyr)
+library(lmtest)
+library(nlme)
+library(forecast)
 
 # Load datasets
 df1 <- read_delim("71488ned_UntypedDataSet_05062025_175816.csv", delim = ";", show_col_types = FALSE)
@@ -99,45 +102,62 @@ print(head(merged_df, 10))
 # =========================
 # Plot 1: National level (NL01)
 # =========================
-# Prepare the data
+# === Prepare Data ===
 df_nl <- merged_df %>%
+  select(Perioden, RegioS, GemiddeldeVerkoopprijs_1) %>%
   filter(RegioS == "Nederland", str_detect(Perioden, "^\\d{4}jj00$")) %>%
+  arrange(Perioden) %>%
   mutate(
     Jaar = as.integer(str_sub(Perioden, 1, 4)),
-    PrijsK = GemiddeldeVerkoopprijs_1 / 1000
+    PrijsK = GemiddeldeVerkoopprijs_1 / 1000,
+    Group = "NL",
+    TimeIndex = row_number()  # Strictly increasing index for AR(1)
   ) %>%
   drop_na(PrijsK)
 
-# Fit log-linear model: log(price) ~ year
-model <- lm(log(PrijsK) ~ Jaar, data = df_nl)
-model_linear <- lm(PrijsK ~ Jaar, data = df_nl)
+# === Breusch-Godfrey test for serial correlation ===
+ols_model <- lm(PrijsK ~ Jaar, data = df_nl)
+print(bgtest(ols_model, order = 2))  # Should show strong autocorrelation
 
-# Create future data frame for prediction up to 2034
-future_years <- data.frame(Jaar = 1995:2034)
-future_years$PredictedLog <- predict(model, newdata = future_years)
-future_years$PredictedPrijsK <- exp(future_years$PredictedLog)
-future_years$LinearPredicted <- predict(model_linear, newdata = future_years)
+# === Fit GLS model with AR(1) ===
+gls_model <- gls(
+  PrijsK ~ Jaar,
+  data = df_nl,
+  correlation = corAR1(form = ~ TimeIndex | Group),
+  method = "ML",  
+  control = glsControl(
+    tolerance = 10,     # Convergence tolerance
+    msVerbose = TRUE      # Show progress (optional)
+  )
+)
 
-# Plot actual and predicted
-p1 <- ggplot(df_nl, aes(x = Jaar, y = PrijsK)) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  geom_line(data = future_years, aes(x = Jaar, y = PredictedPrijsK),
-            color = "red", linetype = "dashed", linewidth = 1.1) +
-  geom_line(data = future_years, aes(x = Jaar, y = LinearPredicted),
-            color = "green", linetype = "dotted", linewidth = 1.1) +
-  scale_y_continuous(name = "House Price (€ x 1,000)", breaks = seq(0, 700, 100)) +
-  scale_x_continuous(breaks = seq(1995, 2034, 2), limits = c(1995, 2034)) +
+# === Forecast future years ===
+n_future <- 2034 - max(df_nl$Jaar)
+future_years <- data.frame(
+  Jaar = (max(df_nl$Jaar) + 1):2034,
+  TimeIndex = max(df_nl$TimeIndex) + seq_len(n_future),
+  Group = "NL"
+)
+
+# Predict future values
+gls_pred <- predict(gls_model, newdata = future_years)
+
+forecast_df <- future_years %>%
+  mutate(PredictedPrijsK = gls_pred)
+
+# === Plot actual + forecast ===
+p1 <- ggplot() +
+  geom_line(data = df_nl, aes(x = Jaar, y = PrijsK), color = "blue", linewidth = 1.2) +
+  geom_line(data = forecast_df, aes(x = Jaar, y = PredictedPrijsK), color = "red", linetype = "dashed", linewidth = 1.1) +
   labs(
-    title = "Average House Prices – Netherlands Total (NL01) with Exponential Forecast",
-    x = "Year"
+    title = "GLS Forecast of Dutch House Prices (AR(1) Corrected)",
+    subtitle = "Blue: Actual | Red dashed: GLS Forecast",
+    x = "Year", y = "House Price (€ x 1,000)"
   ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_x_continuous(breaks = seq(min(df_nl$Jaar), 2034, 2), limits = c(min(df_nl$Jaar), 2034)) +
+  theme_minimal()
 
 print(p1)
-print(summary(model))
-print(summary(model_linear))
-
 # =========================
 # Plot 2: Provinces PV20–PV31
 # =========================
