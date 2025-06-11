@@ -297,6 +297,51 @@ p9 <- merged_df %>%
 
 print(p9)
 
+# Define the codes and readable labels
+kenmerken_codes <- c("1014800", "1014950", "1014900")
+kenmerken_labels <- c(
+  "Owned Home",
+  "Rented Home (No Benefit)",
+  "Rented Home (With Benefit)"
+)
+
+# Create named vector for mapping
+kenmerken_map <- setNames(kenmerken_labels, kenmerken_codes)
+
+# Plot 10: Income by Housing Type
+p10 <- merged_df %>%
+  filter(
+    RegioS == "Nederland",
+    KenmerkenVanHuishoudens %in% kenmerken_codes,
+    Perioden >= "1999JJ00",  # or adjust as needed
+    Geslacht == "T001038"     # total gender, or adjust if necessary
+  ) %>%
+  mutate(
+    Year = as.integer(substr(Perioden, 1, 4)),
+    HousingType = kenmerken_map[as.character(KenmerkenVanHuishoudens)]
+  ) %>%
+  group_by(Year, HousingType) %>%
+  summarise(
+    AverageIncome = mean(GemiddeldGestandaardiseerdInkomen_3, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  ggplot(aes(x = Year, y = AverageIncome, color = HousingType, linetype = HousingType)) +
+  geom_line(linewidth = 1.2, na.rm = TRUE) +
+  geom_point(size = 2, na.rm = TRUE) +
+  scale_y_continuous(labels = scales::comma_format(prefix = "€")) +
+  scale_color_viridis_d(option = "D", begin = 0.2, end = 0.8) +
+  labs(
+    title = "Average Income by Housing Type in the Netherlands (1999–2024)",
+    x = "Year",
+    y = "Average Income (€)",
+    color = "Housing Type",
+    linetype = "Housing Type"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+print(p10)
+
 
 #plot mensen met eigen huis inkomen vs mensen huurwoning zonder toeslag vs mensen huurwoning met toeslag
 #kan nog OLS gooien op de time series voor extrepolatie
