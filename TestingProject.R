@@ -7,6 +7,9 @@ library(tidyr)
 library(lmtest)
 library(nlme)
 library(forecast)
+library(caret)
+library(xgboost)
+
 
 # Load datasets
 df1 <- read_delim("71488ned_UntypedDataSet_05062025_175816.csv", delim = ";", show_col_types = FALSE)
@@ -102,56 +105,80 @@ print(head(merged_df, 10))
 # =========================
 # Plot 1: National level (NL01)
 # =========================
-# === Prepare Data ===
+# === Prepare the data ===
 df_nl <- merged_df %>%
-  select(Perioden, RegioS, GemiddeldeVerkoopprijs_1) %>%
   filter(RegioS == "Nederland", str_detect(Perioden, "^\\d{4}jj00$")) %>%
   arrange(Perioden) %>%
   mutate(
     Jaar = as.integer(str_sub(Perioden, 1, 4)),
     PrijsK = GemiddeldeVerkoopprijs_1 / 1000,
-    Group = "NL",
-    TimeIndex = row_number()  # Strictly increasing index for AR(1)
+    InkomenK = GemiddeldGestandaardiseerdInkomen_3 / 1000,
+    Huishoudens = TotaalPersonenInHuishoudens_1
   ) %>%
-  drop_na(PrijsK)
+  mutate(
+    Lag1 = lag(PrijsK, 1),
+    Lag2 = lag(PrijsK, 2),
+    Lag3 = lag(PrijsK, 3)
+  ) %>%
+  drop_na(PrijsK, InkomenK, Huishoudens, Lag1, Lag2, Lag3)
 
-# === Breusch-Godfrey test for serial correlation ===
-ols_model <- lm(PrijsK ~ Jaar, data = df_nl)
-print(bgtest(ols_model, order = 2))  # Should show strong autocorrelation
+# === Training set ===
+train_data <- df_nl %>%
+  select(PrijsK, Jaar, InkomenK, Huishoudens, Lag1, Lag2, Lag3)
 
-# === Fit GLS model with AR(1) ===
-gls_model <- gls(
-  PrijsK ~ Jaar,
-  data = df_nl,
-  correlation = corAR1(form = ~ TimeIndex | Group),
-  method = "REML",  #ML kan ook maar langzamer morgen kijken of newey west standard errors beter werkt aangezien dit lang duurt om te berekenen en lelijk.
-  control = glsControl(
-    tolerance = 10,     # Convergence tolerance
-    msVerbose = TRUE      # Show progress (optional)
-  )
+X_train <- as.matrix(train_data[, -1])  # drop PrijsK
+y_train <- train_data$PrijsK
+
+# === Train XGBoost ===
+xgb_model <- xgboost(
+  data = X_train,
+  label = y_train,
+  nrounds = 200,
+  objective = "reg:squarederror",
+  verbose = 0
 )
 
-# === Forecast future years ===
+# === Recursive forecast ===
 n_future <- 2034 - max(df_nl$Jaar)
-future_years <- data.frame(
-  Jaar = (max(df_nl$Jaar) + 1):2034,
-  TimeIndex = max(df_nl$TimeIndex) + seq_len(n_future),
-  Group = "NL"
+last_year <- max(df_nl$Jaar)
+last_prices <- tail(df_nl$PrijsK, 3)
+last_income <- tail(df_nl$InkomenK, 1)
+last_households <- tail(df_nl$Huishoudens, 1)
+
+future_forecast <- tibble(
+  Jaar = (last_year + 1):2034,
+  InkomenK = last_income,
+  Huishoudens = last_households,
+  Lag1 = NA_real_,
+  Lag2 = NA_real_,
+  Lag3 = NA_real_,
+  PredictedPrijsK = NA_real_
 )
 
-# Predict future values
-gls_pred <- predict(gls_model, newdata = future_years)
-
-forecast_df <- future_years %>%
-  mutate(PredictedPrijsK = gls_pred)
-
-# === Plot actual + forecast ===
-p1 <- ggplot() +
+for (i in 1:n_future) {
+  if (i == 1) {
+    lags <- last_prices
+  } else {
+    lags <- c(future_forecast$PredictedPrijsK[i - 1],
+              future_forecast$Lag1[i - 1],
+              future_forecast$Lag2[i - 1])
+  }
+  
+  future_forecast$Lag1[i] <- lags[1]
+  future_forecast$Lag2[i] <- lags[2]
+  future_forecast$Lag3[i] <- lags[3]
+  
+  input_matrix <- as.matrix(future_forecast[i, c("Jaar", "InkomenK", "Huishoudens", "Lag1", "Lag2", "Lag3")])
+  future_forecast$PredictedPrijsK[i] <- predict(xgb_model, input_matrix)
+}
+print(input_matrix)
+# === Plot ===
+ggplot() +
   geom_line(data = df_nl, aes(x = Jaar, y = PrijsK), color = "blue", linewidth = 1.2) +
-  geom_line(data = forecast_df, aes(x = Jaar, y = PredictedPrijsK), color = "red", linetype = "dashed", linewidth = 1.1) +
+  geom_line(data = future_forecast, aes(x = Jaar, y = PredictedPrijsK), color = "darkgreen", linetype = "dashed", linewidth = 1.1) +
   labs(
-    title = "GLS Forecast of Dutch House Prices (AR(1) Corrected)",
-    subtitle = "Blue: Actual | Red dashed: GLS Forecast",
+    title = "XGBoost Forecast with Lags + Income + Households",
+    subtitle = "Blue = Actual | Green dashed = Forecast",
     x = "Year", y = "House Price (€ x 1,000)"
   ) +
   scale_x_continuous(breaks = seq(min(df_nl$Jaar), 2034, 2), limits = c(min(df_nl$Jaar), 2034)) +
