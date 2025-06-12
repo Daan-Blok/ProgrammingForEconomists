@@ -4,6 +4,12 @@ library(dplyr)
 library(ggplot2)
 library(stringr)
 library(tidyr)
+library(lmtest)
+library(nlme)
+library(forecast)
+library(caret)
+library(xgboost)
+
 
 # Load datasets
 df1 <- read_delim("71488ned_UntypedDataSet_05062025_175816.csv", delim = ";", show_col_types = FALSE)
@@ -99,45 +105,86 @@ print(head(merged_df, 10))
 # =========================
 # Plot 1: National level (NL01)
 # =========================
-# Prepare the data
+# === Prepare the data ===
 df_nl <- merged_df %>%
   filter(RegioS == "Nederland", str_detect(Perioden, "^\\d{4}jj00$")) %>%
+  arrange(Perioden) %>%
   mutate(
     Jaar = as.integer(str_sub(Perioden, 1, 4)),
-    PrijsK = GemiddeldeVerkoopprijs_1 / 1000
+    PrijsK = GemiddeldeVerkoopprijs_1 / 1000,
+    InkomenK = GemiddeldGestandaardiseerdInkomen_3 / 1000,
+    Huishoudens = TotaalPersonenInHuishoudens_1
   ) %>%
-  drop_na(PrijsK)
+  mutate(
+    Lag1 = lag(PrijsK, 1),
+    Lag2 = lag(PrijsK, 2),
+    Lag3 = lag(PrijsK, 3)
+  ) %>%
+  drop_na(PrijsK, InkomenK, Huishoudens, Lag1, Lag2, Lag3)
 
-# Fit log-linear model: log(price) ~ year
-model <- lm(log(PrijsK) ~ Jaar, data = df_nl)
-model_linear <- lm(PrijsK ~ Jaar, data = df_nl)
+# === Training set ===
+train_data <- df_nl %>%
+  select(PrijsK, Jaar, InkomenK, Huishoudens, Lag1, Lag2, Lag3)
 
-# Create future data frame for prediction up to 2034
-future_years <- data.frame(Jaar = 1995:2034)
-future_years$PredictedLog <- predict(model, newdata = future_years)
-future_years$PredictedPrijsK <- exp(future_years$PredictedLog)
-future_years$LinearPredicted <- predict(model_linear, newdata = future_years)
+X_train <- as.matrix(train_data[, -1])  # drop PrijsK
+y_train <- train_data$PrijsK
 
-# Plot actual and predicted
-p1 <- ggplot(df_nl, aes(x = Jaar, y = PrijsK)) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  geom_line(data = future_years, aes(x = Jaar, y = PredictedPrijsK),
-            color = "red", linetype = "dashed", linewidth = 1.1) +
-  geom_line(data = future_years, aes(x = Jaar, y = LinearPredicted),
-            color = "green", linetype = "dotted", linewidth = 1.1) +
-  scale_y_continuous(name = "House Price (€ x 1,000)", breaks = seq(0, 700, 100)) +
-  scale_x_continuous(breaks = seq(1995, 2034, 2), limits = c(1995, 2034)) +
+# === Train XGBoost ===
+xgb_model <- xgboost(
+  data = X_train,
+  label = y_train,
+  nrounds = 200,
+  objective = "reg:squarederror",
+  verbose = 0
+)
+
+# === Recursive forecast ===
+n_future <- 2034 - max(df_nl$Jaar)
+last_year <- max(df_nl$Jaar)
+last_prices <- tail(df_nl$PrijsK, 3)
+last_income <- tail(df_nl$InkomenK, 1)
+last_households <- tail(df_nl$Huishoudens, 1)
+
+future_forecast <- tibble(
+  Jaar = (last_year + 1):2034,
+  InkomenK = last_income,
+  Huishoudens = last_households,
+  Lag1 = NA_real_,
+  Lag2 = NA_real_,
+  Lag3 = NA_real_,
+  PredictedPrijsK = NA_real_
+)
+
+for (i in 1:n_future) {
+  if (i == 1) {
+    lags <- last_prices
+  } else {
+    lags <- c(future_forecast$PredictedPrijsK[i - 1],
+              future_forecast$Lag1[i - 1],
+              future_forecast$Lag2[i - 1])
+  }
+  
+  future_forecast$Lag1[i] <- lags[1]
+  future_forecast$Lag2[i] <- lags[2]
+  future_forecast$Lag3[i] <- lags[3]
+  
+  input_matrix <- as.matrix(future_forecast[i, c("Jaar", "InkomenK", "Huishoudens", "Lag1", "Lag2", "Lag3")])
+  future_forecast$PredictedPrijsK[i] <- predict(xgb_model, input_matrix)
+}
+print(input_matrix)
+# === Plot ===
+ggplot() +
+  geom_line(data = df_nl, aes(x = Jaar, y = PrijsK), color = "blue", linewidth = 1.2) +
+  geom_line(data = future_forecast, aes(x = Jaar, y = PredictedPrijsK), color = "darkgreen", linetype = "dashed", linewidth = 1.1) +
   labs(
-    title = "Average House Prices – Netherlands Total (NL01) with Exponential Forecast",
-    x = "Year"
+    title = "XGBoost Forecast with Lags + Income + Households",
+    subtitle = "Blue = Actual | Green dashed = Forecast",
+    x = "Year", y = "House Price (€ x 1,000)"
   ) +
-  theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  scale_x_continuous(breaks = seq(min(df_nl$Jaar), 2034, 2), limits = c(min(df_nl$Jaar), 2034)) +
+  theme_minimal()
 
 print(p1)
-print(summary(model))
-print(summary(model_linear))
-
 # =========================
 # Plot 2: Provinces PV20–PV31
 # =========================

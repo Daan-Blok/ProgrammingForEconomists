@@ -1,5 +1,11 @@
 library(tidyverse)
 library(scales)
+library(dplyr)
+library(ggplot2)
+library(stringr)
+library(tidyr)
+library(lmtest)
+library(nlme)
 
 # Load datasets
 df1 <- read_delim("71488ned_UntypedDataSet_05062025_175816.csv", delim = ";", show_col_types = FALSE)
@@ -96,7 +102,7 @@ print(head(merged_df, 10))
 # Plot 1: National level (NL01)
 # =========================
 # Prepare the data
-df_nl <- merged_df %>%
+p1 <- merged_df %>%
   filter(RegioS == "Nederland", str_detect(Perioden, "^\\d{4}jj00$")) %>%
   mutate(
     Jaar = as.integer(str_sub(Perioden, 1, 4)),
@@ -105,18 +111,22 @@ df_nl <- merged_df %>%
   drop_na(PrijsK)
 
 # Fit log-linear model: log(price) ~ year
-model <- lm(log(PrijsK) ~ Jaar, data = df_nl)
+model <- lm(log(PrijsK) ~ Jaar, data = p1)
+model_linear <- lm(PrijsK ~ Jaar, data = p1)
 
 # Create future data frame for prediction up to 2034
 future_years <- data.frame(Jaar = 1995:2034)
 future_years$PredictedLog <- predict(model, newdata = future_years)
 future_years$PredictedPrijsK <- exp(future_years$PredictedLog)
+future_years$LinearPredicted <- predict(model_linear, newdata = future_years)
 
 # Plot actual and predicted
-p1 <- ggplot(df_nl, aes(x = Jaar, y = PrijsK)) +
+p1 <- ggplot(p1, aes(x = Jaar, y = PrijsK)) +
   geom_line(color = "blue", linewidth = 1.2) +
   geom_line(data = future_years, aes(x = Jaar, y = PredictedPrijsK),
             color = "red", linetype = "dashed", linewidth = 1.1) +
+  geom_line(data = future_years, aes(x = Jaar, y = LinearPredicted),
+            color = "green", linetype = "dotted", linewidth = 1.1) +
   scale_y_continuous(name = "House Price (€ x 1,000)", breaks = seq(0, 700, 100)) +
   scale_x_continuous(breaks = seq(1995, 2034, 2), limits = c(1995, 2034)) +
   labs(
@@ -126,9 +136,21 @@ p1 <- ggplot(df_nl, aes(x = Jaar, y = PrijsK)) +
   theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
+print(dwtest(model))
+print(bgtest(model, order = 3))
+
+# Prediction for 2034 with 95% confidence interval
+newdata_2034 <- data.frame(Jaar = 2034)
+pred_2034 <- predict(model, newdata = newdata_2034, interval = "confidence", level = 0.95)
+
+# Back-transform to original scale (from log to level)
+pred_2034_exp <- exp(pred_2034)
+
+# Print result
+print(pred_2034_exp)
 print(p1)
 print(summary(model))
-
+print(summary(model_linear))
 # =========================
 # Plot 2: Provinces PV20–PV31
 # =========================
@@ -358,7 +380,6 @@ p10 <- merged_df %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 print(p10)
-
 
 #kan nog OLS gooien op de time series voor extrepolatie
 #zelfde voor inkomen OLS kan ook en dan zeggen gat gaat alleen maar groter worden tussen de twee
