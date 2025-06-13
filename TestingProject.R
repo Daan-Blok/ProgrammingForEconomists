@@ -22,6 +22,10 @@ kenmerken_map <- c(
 
 years_to_plot <- c("2024jj00", "2014jj00", "2004jj00")
 
+# ========== 2. CUSTOM THEMES ==========
+my_theme <- theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
 # ========== 3. LOAD, MERGE & TRANSFORM ==========
 
 load_and_clean <- function(file) {
@@ -75,16 +79,21 @@ index_df <- merged_df %>%
 
 p1 <- merged_df %>%
   filter(RegioS == "Nederland", !is.na(Jaar)) %>%
-  ggplot(aes(x = Jaar, y = PrijsK)) +
-  geom_line(color = "blue", linewidth = 1.2) +
-  labs(title = "Average House Prices – Netherlands", x = "Year", y = "Housing Price (€ x 1,000)")
+  ggplot(aes(x = Jaar, y = PrijsK, color = RegioS)) +
+  geom_line(linewidth = 1.2) +
+  scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE),  max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
+  scale_y_continuous(labels = scales::comma_format(prefix = "€")) +
+  labs(title = "Average Housing Price In The Netherlands", x = "Year", y = "Housing Price (€ x 1,000)", color = "Region")
 
 p2 <- merged_df %>%
   filter(RegioS %in% province_map[1:12], Perioden == "2024jj00") %>%
   distinct(RegioS, .keep_all = TRUE) %>%
-  ggplot(aes(x = fct_reorder(RegioS, PrijsK), y = PrijsK)) +
-  geom_col(fill = "skyblue") +
-  labs(title = "House Prices by Province (2024)", x = "Province", y = "Price (€ x 1,000)")
+  ggplot(aes(x = fct_reorder(RegioS, PrijsK), y = 1, fill = PrijsK)) +
+  geom_tile(color = "white", height = 0.8) +
+  scale_fill_gradient(low = "skyblue", high = "darkblue", name = "Price (€ x 1,000)") +
+  scale_y_continuous(expand = c(0, 0), breaks = NULL, labels = NULL) +
+  labs(title = "Housing Prices by Province in 2024", x = "Province", y = NULL) +
+  coord_cartesian(xlim = c(0.3, NA)) 
 
 p3 <- merged_df %>%
   filter(RegioS == "Nederland", KenmerkenVanHuishoudens == 1050010, !is.na(InkomenK)) %>%
@@ -129,5 +138,13 @@ p8 <- merged_df %>%
   labs(title = "Average Income by Housing Type", 
        x = "Year", y = "Income (€ x 1,000)", color = "Housing Type", linetype = "Housing Type")
 
+p9 <- merged_df %>%
+  filter(RegioS == "Nederland", !is.na(Jaar)) %>%
+  ggplot(aes(x = Jaar, y = PrijsK, color = RegioS)) +
+  geom_line(linewidth = 1.2) +
+  geom_vline(xintercept = 2008, linetype = "dotted", color = "black", linewidth = 1) +
+  scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE),  max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
+  scale_y_continuous(labels = scales::comma_format(prefix = "€")) +
+  labs(title = "Average Housing Price In The Netherlands", x = "Year", y = "Housing Price (€ x 1,000)", color = "Region")
 # ========== 5. PRINT ==========
-list(p1, p2, p3, p4, p5, p6, p7, p8) %>% walk(print)
+list(p1, p2, p3, p4, p5, p6, p7, p8, p9) %>% walk(~ print(.x + my_theme))
