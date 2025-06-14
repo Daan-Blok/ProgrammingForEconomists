@@ -36,7 +36,6 @@ my_theme <- theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # ========== 3. LOAD, CLEAN, MERGE & TRANSFORM ==========
-
 load_cbs_raw <- function(table_id) {
   cbs_get_data(table_id, typed = FALSE)
 }
@@ -95,7 +94,6 @@ index_df <- merged_df %>%
          Ratio = HousePriceIndex / IncomeLevelIndex)
 
 # ========== 4. PLOTS ==========
-
 p1 <- merged_df %>%
   filter(RegioS == "Nederland", !is.na(Jaar)) %>%
   ggplot(aes(x = Jaar, y = HuisPrijs)) +

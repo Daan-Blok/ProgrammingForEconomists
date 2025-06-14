@@ -36,7 +36,6 @@ my_theme <- theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
 # ========== 3. LOAD, CLEAN, MERGE & TRANSFORM ==========
-
 load_cbs_raw <- function(table_id) {
   cbs_get_data(table_id, typed = FALSE)
 }
@@ -74,8 +73,8 @@ numeric_like_cols <- names(merged_df)[
 ]
 
 merged_df <- merged_df %>%
-mutate(across(all_of(numeric_like_cols), ~ parse_number(., na = c("", ".", "n.v.t.", "onbekend"))))%>%
-mutate(
+  mutate(across(all_of(numeric_like_cols), ~ parse_number(., na = c("", ".", "n.v.t.", "onbekend"))))%>%
+  mutate(
     RegioS = recode(RegioS, !!!province_map),
     Jaar = as.integer(str_sub(Perioden, 1, 4)),
     HuisPrijs = GemiddeldeVerkoopprijs_1 / 1000,
@@ -95,7 +94,6 @@ index_df <- merged_df %>%
          Ratio = HousePriceIndex / IncomeLevelIndex)
 
 # ========== 4. PLOTS ==========
-
 p1 <- merged_df %>%
   filter(RegioS == "Nederland", !is.na(Jaar)) %>%
   ggplot(aes(x = Jaar, y = HuisPrijs)) +
