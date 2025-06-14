@@ -1,5 +1,6 @@
 library(tidyverse)
 library(scales)
+library(cbsodataR)
 
 # ========== 1. CONSTANTS & MAPPINGS ==========
 province_map <- c(
@@ -22,33 +23,55 @@ kenmerken_map <- c(
 
 years_to_plot <- c("2024jj00", "2014jj00", "2004jj00")
 
+table_ids <- c("83625NED", "86004NED", "71488NED")
+
+table_column_map <- list(
+  "83625NED" = c("RegioS", "Perioden", "GemiddeldeVerkoopprijs_1"),
+  "86004NED" = c("KenmerkenVanHuishoudens", "RegioS", "Perioden", "GemiddeldGestandaardiseerdInkomen_3", "Populatie"),
+  "71488NED" = c("Geslacht", "Leeftijd", "RegioS", "Perioden", "TotaalPersonenInHuishoudens_1", "Alleenstaand_4", "TotaalSamenwonendePersonen_5")
+)
+
 # ========== 2. CUSTOM THEMES ==========
 my_theme <- theme_minimal() +
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 
-# ========== 3. LOAD, MERGE & TRANSFORM ==========
+# ========== 3. LOAD, CLEAN, MERGE & TRANSFORM ==========
 
-load_and_clean <- function(file) {
-  read_delim(file, delim = ";", show_col_types = FALSE) %>%
-    mutate(across(c(RegioS, Perioden), ~ str_trim(tolower(.))))
+load_cbs_raw <- function(table_id) {
+  cbs_get_data(table_id, typed = FALSE)
 }
 
-merged_df <- list("71488ned_UntypedDataSet_05062025_175816.csv", 
-                  "83625NED_UntypedDataSet_05062025_101716.csv", 
-                  "86004NED_UntypedDataSet_07062025_175918.csv") %>%
-  map(load_and_clean) %>%
+raw_tables <- suppressWarnings(map(table_ids, load_cbs_raw))
+
+clean_cbs_data <- function(df, table_id) {
+  df <- df %>%
+    mutate(across(c(RegioS, Perioden), ~ str_trim(tolower(as.character(.)))))
+  
+  colnames(df) <- str_trim(colnames(df))
+  
+  keep_cols <- table_column_map[[table_id]]
+  
+  keep_cols <- union(keep_cols, c("RegioS", "Perioden"))
+  
+  df <- df %>% select(any_of(keep_cols)) %>%
+    filter(RegioS %in% tolower(names(province_map))) %>%
+    {
+      if ("Geslacht" %in% names(.)) filter(., Geslacht == "T001038") 
+      else if ("Populatie" %in% names(.)) filter(., Populatie == "1050010") else .
+    }
+  
+  return(df)
+}
+
+cleaned_tables <- map2(raw_tables, table_ids, clean_cbs_data)
+
+merged_df <- cleaned_tables %>%
   reduce(full_join, by = c("RegioS", "Perioden")) %>%
-  select(-matches("^ID(\\.x|\\.y)?$"),-starts_with("GestandaardiseerdInkomen"),
-         -starts_with("Partner"), -starts_with("Mediaan"), -GemiddeldBesteedbaarInkomen_5) %>%
   mutate(across(where(is.character), str_trim))
 
-# Convert numeric-like columns to numeric
-numeric_like_cols <- merged_df %>%
-  select(where(is.character)) %>%
-  summarise(across(everything(), ~ mean(str_detect(., "^\\s*[0-9,.]+\\s*$"), na.rm = TRUE))) %>%
-  pivot_longer(everything(), names_to = "col", values_to = "pct_numeric") %>%
-  filter(pct_numeric > 0.8) %>%
-  pull(col)
+numeric_like_cols <- names(merged_df)[
+  sapply(merged_df, function(col) mean(str_detect(col, "^\\s*[0-9,.]+\\s*$"), na.rm = TRUE) > 0.8)
+]
 
 merged_df <- merged_df %>%
 mutate(across(all_of(numeric_like_cols), ~ parse_number(., na = c("", ".", "n.v.t.", "onbekend"))))%>%
