@@ -1,0 +1,267 @@
+---
+title: "PFE group 6"
+author: "Daan Blok (2821386),"
+date: "`r Sys.Date()`"
+output: pdf_document
+
+# Set-up your environment
+
+```{r package_install, include=FALSE}
+install.packages("tidyverse")
+install.packages("scales")
+install.packages("cbsodataR")
+```
+
+```{r packages}
+library(tidyverse)
+library(scales)
+library(cbsodataR)
+```
+
+# ========== 1. CONSTANTS & MAPPINGS ==========
+```{r defining constants and mapping}
+province_map <- c(
+  "pv20" = "Groningen", "pv21" = "Fryslân", "pv22" = "Drenthe", "pv23" = "Overijssel",
+  "pv24" = "Flevoland", "pv25" = "Gelderland", "pv26" = "Utrecht", "pv27" = "Noord-Holland",
+  "pv28" = "Zuid-Holland", "pv29" = "Zeeland", "pv30" = "Noord-Brabant", "pv31" = "Limburg",
+  "nl01" = "Nederland"
+)
+
+age_map <- c(
+  "70100" = "0-4", "70200" = "5-9", "70300" = "10-14", "70400" = "15-19", "70500" = "20-24",
+  "70600" = "25-29", "70700" = "30-34", "70800" = "35-39", "70900" = "40-44", "71000" = "45-49",
+  "71100" = "50-54", "71200" = "55-59", "71300" = "60-64", "71400" = "65-69", "71500" = "70-74",
+  "71600" = "75-79", "71700" = "80-84", "71800" = "85-89", "71900" = "90-94", "22000" = "95+"
+)
+
+kenmerken_map <- c(
+  "1014800" = "Owned Home", "1014950" = "Rented (No Benefit)", "1014900" = "Rented (With Benefit)"
+)
+
+years_to_plot <- c("2024jj00", "2014jj00", "2004jj00")
+
+table_ids <- c("83625NED", "86004NED", "71488NED")
+
+table_column_map <- list(
+  "83625NED" = c("RegioS", "Perioden", "GemiddeldeVerkoopprijs_1"),
+  "86004NED" = c("KenmerkenVanHuishoudens", "RegioS", "Perioden", "GemiddeldGestandaardiseerdInkomen_3", "Populatie"),
+  "71488NED" = c("Geslacht", "Leeftijd", "RegioS", "Perioden", "TotaalPersonenInHuishoudens_1", "Alleenstaand_4", "TotaalSamenwonendePersonen_5")
+)
+```
+
+# ========== 2. CUSTOM THEMES ==========
+```{r defining custom theme}
+my_theme <- theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+# Title Page
+
+Title Page
+
+Student names: Daan Blok
+
+Tutorial group: Tutorial 1 Group 6
+
+Tutorial lecturer: Jack Fitzgerald
+
+# Part 1 - Identify a Social Problem
+
+Use APA referencing throughout your document. [Here's a link to some explanation.](https://www.mendeley.com/guides/apa-citation-guide/)
+
+The housing market in the Netherlands is currently facing significant problems, especially for young people. There are long waiting lists for rental housing, and in addition, there are high rental prices in the private sector. The prices of owner-occupied homes have risen sharply in recent years, making it increasingly difficult for young people and young adults to find affordable housing (Wat Zijn Gevolgen van de Onzekere Woningmarkt Voor Jongeren? \| Nederlands Jeugdinstituut, z.d.-b). This has led to a historic low in the number of young people who have purchased a home. According to the CBS, there is a shortage of approximately 315,000 homes in the Netherlands (CBS Statline, z.d.). The research by Wiesel et al. (2021) highlights that there are significant differences between generations regarding income inequality. Baby boomers have benefited from relatively affordable housing, while younger generations, such as Generation X and millennials, face greater challenges in covering housing costs. This has direct implications for their economic opportunities. The rising house prices and increasing housing costs have contributed to the growing inequality in the housing market. Households with middle incomes are also experiencing increasing problems. Many of these households fall between the cracks, as their income is too high for social rental housing but too low for the private rental market. This results in limited access to affordable housing (Schilder et al., z.d.-b). Although the social rental sector in the Netherlands offers affordable rents in absolute terms, the pressure on this sector is increasing, particularly due to the growing number of households that rely on social housing (Schilder et al., z.d.-b). The combination of these factors makes the situation in the housing market particularly urgent and calls for attention from policymakers to address the issues and ensure access to affordable housing for young people and other vulnerable groups.
+
+**This leads to the following social problem: Access to affordable housing for vulnerable groups.**
+
+## 1.1 Describe the Social Problem
+
+Include the following:
+
+-   Why is this relevant?
+
+-   ...
+
+# Part 2 - Data Sourcing
+
+## 2.1 Load in the data
+
+# ========== 3. LOAD, CLEAN, MERGE & TRANSFORM ==========
+```{r loading_data}
+load_cbs_raw <- function(table_id) {
+  cbs_get_data(table_id, typed = FALSE)
+}
+
+raw_tables <- suppressWarnings(map(table_ids, load_cbs_raw))
+
+clean_cbs_data <- function(df, table_id) {
+  df <- df %>%
+    mutate(across(c(RegioS, Perioden), ~ str_trim(tolower(as.character(.)))))
+  
+  colnames(df) <- str_trim(colnames(df))
+  
+  keep_cols <- table_column_map[[table_id]]
+  
+  keep_cols <- union(keep_cols, c("RegioS", "Perioden"))
+  
+  df <- df %>% select(any_of(keep_cols)) %>%
+    filter(RegioS %in% tolower(names(province_map))) %>%
+    {
+      if ("Geslacht" %in% names(.)) filter(., Geslacht == "T001038") 
+      else if ("Populatie" %in% names(.)) filter(., Populatie == "1050010") else .
+    }
+  
+  return(df)
+}
+
+cleaned_tables <- map2(raw_tables, table_ids, clean_cbs_data)
+
+merged_df <- cleaned_tables %>%
+  reduce(full_join, by = c("RegioS", "Perioden")) %>%
+  mutate(across(where(is.character), str_trim))
+
+numeric_like_cols <- names(merged_df)[
+  sapply(merged_df, function(col) mean(str_detect(col, "^\\s*[0-9,.]+\\s*$"), na.rm = TRUE) > 0.8)
+]
+
+merged_df <- merged_df %>%
+  mutate(across(all_of(numeric_like_cols), ~ parse_number(., na = c("", ".", "n.v.t.", "onbekend"))))%>%
+  mutate(
+    RegioS = recode(RegioS, !!!province_map),
+    Jaar = as.integer(str_sub(Perioden, 1, 4)),
+    HuisPrijs = GemiddeldeVerkoopprijs_1 / 1000,
+    GestandaardiseerdInkomen = GemiddeldGestandaardiseerdInkomen_3,
+    OpZichzelfWonend = 100 * (Alleenstaand_4 + TotaalSamenwonendePersonen_5) / TotaalPersonenInHuishoudens_1,
+    AgeGroup = age_map[as.character(Leeftijd)],
+    HousingType = kenmerken_map[as.character(KenmerkenVanHuishoudens)],
+    YearStr = substr(Perioden, 1, 4),
+  )
+
+reference_price_2011 <- merged_df %>%
+  filter(RegioS == "Nederland", Jaar == 2011) %>%
+  pull(HuisPrijs) %>%
+  first()
+
+reference_income_2011 <- merged_df %>%
+  filter(RegioS == "Nederland", Jaar == 2011) %>%
+  pull(GestandaardiseerdInkomen) %>%
+  first()
+
+merged_df <- merged_df %>%
+  mutate(    HousePriceIndex = 100 * HuisPrijs / reference_price_2011,
+             IncomeLevelIndex = 100 * GestandaardiseerdInkomen / reference_income_2011,
+             Ratio = HousePriceIndex / IncomeLevelIndex)
+```
+
+midwest is an example dataset included in the tidyverse package
+
+## 2.2 Provide a short summary of the dataset(s)
+
+```{r}
+print(head(merged_df))
+print(head(index_df))
+```
+
+In this case we see 28 variables, but we miss some information on what units they are in. We also don't know anything about the year/moment in which this data has been captured.
+
+``` r
+inline_code = TRUE
+```
+
+These are things that are usually included in the metadata of the dataset. For your project, you need to provide us with the information from your metadata that we need to understand your dataset of choice.
+
+## 2.3 Describe the type of variables included
+
+Think of things like:
+
+-   Do the variables contain health information or SES information?
+
+-   Have they been measured by interviewing individuals or is the data coming from administrative sources?
+
+*For the sake of this example, I will continue with the assignment...*
+
+# Part 3 - Quantifying
+
+## 3.1 Data cleaning
+
+Say we want to include only larger distances (above 2) in our dataset, we can filter for this.
+
+```{r data_cleaning}
+mean(dataset$percollege)
+```
+
+Please use a separate 'R block' of code for each type of cleaning. So, e.g. one for missing values, a new one for removing unnecessary variables etc.
+
+## 3.2 Generate necessary variables
+
+Variable 1
+
+```{r gen_var1}
+
+```
+
+Variable 2
+
+```{r gen_var2}
+
+```
+
+## 3.3 Visualize temporal variation
+
+```{r}
+
+```
+
+## 3.4 Visualize spatial variation
+
+```{r visualise_map}
+
+```
+
+Here you provide a description of why the plot above is relevant to your specific social problem.
+
+## 3.5 Visualize sub-population variation
+
+What is the poverty rate by state?
+
+```{r visualise_subpopulations}
+dataset$inmetro <- dataset$inmetro %>% as.factor()
+# Boxplot of poverty rate by state using the 'midwest' dataset
+ggplot(dataset, aes(x = inmetro, y = percadultpoverty)) +
+  geom_boxplot() +
+  labs(
+    title = "Distribution of Poverty Rates by Metropolitan status (Midwest counties)",
+    x = "Metropolitan Area",
+    y = "Poverty Rate of Adults (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right"
+  )
+```
+
+Here you provide a description of why the plot above is relevant to your specific social problem.
+
+## 3.6 Event analysis
+
+Analyze the relationship between two variables.
+
+```{r analysis}
+
+```
+
+Here you provide a description of why the plot above is relevant to your specific social problem.
+
+# Part 4 - Discussion
+
+## 4.1 Discuss your findings
+
+# Part 5 - Reproducibility
+
+## 5.1 Github repository link
+
+Provide the link to your PUBLIC repository here: ...
+
+## 5.2 Reference list
+
+Use APA referencing throughout your document.
+

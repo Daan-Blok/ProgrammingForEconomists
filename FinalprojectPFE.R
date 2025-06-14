@@ -82,17 +82,25 @@ merged_df <- merged_df %>%
     OpZichzelfWonend = 100 * (Alleenstaand_4 + TotaalSamenwonendePersonen_5) / TotaalPersonenInHuishoudens_1,
     AgeGroup = age_map[as.character(Leeftijd)],
     HousingType = kenmerken_map[as.character(KenmerkenVanHuishoudens)],
-    YearStr = substr(Perioden, 1, 4)
+    YearStr = substr(Perioden, 1, 4),
   )
 
-index_df <- merged_df %>%
-  filter(RegioS == "Nederland", KenmerkenVanHuishoudens == 1050010, !is.na(Jaar)) %>%
-  arrange(Jaar) %>%
-  filter(Jaar >= 2011) %>%
-  mutate(HousePriceIndex = 100 * HuisPrijs / HuisPrijs[Jaar == 2011],
-         IncomeLevelIndex = 100 * GestandaardiseerdInkomen / GestandaardiseerdInkomen[Jaar == 2011],
-         Ratio = HousePriceIndex / IncomeLevelIndex)
+reference_price_2011 <- merged_df %>%
+  filter(RegioS == "Nederland", Jaar == 2011) %>%
+  pull(HuisPrijs) %>%
+  first()
 
+reference_income_2011 <- merged_df %>%
+  filter(RegioS == "Nederland", Jaar == 2011) %>%
+  pull(GestandaardiseerdInkomen) %>%
+  first()
+
+merged_df <- merged_df %>%
+  mutate(    HousePriceIndex = 100 * HuisPrijs / reference_price_2011,
+             IncomeLevelIndex = 100 * GestandaardiseerdInkomen / reference_income_2011,
+             Ratio = HousePriceIndex / IncomeLevelIndex)
+
+print(head(merged_df))
 # ========== 4. PLOTS ==========
 p1 <- merged_df %>%
   filter(RegioS == "Nederland", !is.na(Jaar)) %>%
@@ -128,14 +136,18 @@ p4 <- merged_df %>%
   labs(title = "      Average Disposable Income by Province (2023)", x = "Province", y = NULL) +
   coord_cartesian(xlim = c(0.3, NA))
 
-p5 <- ggplot(index_df, aes(x = Jaar)) +
+p5 <- merged_df %>%
+  filter(RegioS == "Nederland", KenmerkenVanHuishoudens == 1050010, !is.na(Jaar), Jaar >= 2011) %>%
+  ggplot(aes(x = Jaar)) +
   geom_line(aes(y = HousePriceIndex, color = "House Prices"), linewidth = 1.2) +
   geom_line(aes(y = IncomeLevelIndex, color = "Disposable Income"), linewidth = 1.2) +
   scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE), max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
   scale_color_manual(values = c("House Prices" = "darkred", "Disposable Income" = "darkgreen")) +
   labs(title = "Average House Price vs Average Disposable Income (Index, Netherlands)", x = "Year", y = "Index (2011 = 100)", color = "Measure")
 
-p6 <- ggplot(index_df, aes(x = Jaar, y = Ratio)) +
+p6 <- merged_df %>%
+  filter(RegioS == "Nederland", KenmerkenVanHuishoudens == 1050010, !is.na(Jaar), Jaar >= 2011) %>%
+  ggplot(aes(x = Jaar, y = Ratio)) +
   geom_line(color = "purple", linewidth = 1.2) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "gray") +
   scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE), max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
