@@ -5,7 +5,6 @@ library(rlang)
 library(sf)
 library(giscoR)
 
-
 # ========== 1. CONSTANTS & MAPPINGS ==========
 province_map <- c(
   "pv20" = "Groningen", "pv21" = "Friesland", "pv22" = "Drenthe", "pv23" = "Overijssel",
