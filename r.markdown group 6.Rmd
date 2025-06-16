@@ -1,19 +1,114 @@
 ---
-title: "PFE group 6"
-output: html_document
-date: "2025-06-11"
+title: "PFE group 6" 
+author: "Daan Blok (2821386), Daniel ten Broeke (), Dries A. M. Berns (), Kon Ntovas (), Mariah P. Mendoza (), Sofie A. Hopman (), Vlad A. Partenie ()" 
+date: "`r Sys.Date()`" 
+output: pdf_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
+# Set-up your environment
+
+```{r package_install, include=FALSE}
+#install.packages("tidyverse")
+#install.packages("scales")
+#install.packages("cbsodataR")
+#install.packages("rlang")
+#install.packages("sf")
+#install.packages("giscoR")
 ```
 
-**Part 1 - Identify a Social Problem**
+```{r packages}
+library(tidyverse)
+library(scales)
+library(cbsodataR)
+library(rlang)
+library(sf)
+library(giscoR)
+```
+
+# 1. CONSTANTS & MAPPINGS
+
+```{r defining constants and mapping}
+province_map <- c(
+  "pv20" = "Groningen", "pv21" = "Friesland", "pv22" = "Drenthe", "pv23" = "Overijssel",
+  "pv24" = "Flevoland", "pv25" = "Gelderland", "pv26" = "Utrecht", "pv27" = "Noord-Holland",
+  "pv28" = "Zuid-Holland", "pv29" = "Zeeland", "pv30" = "Noord-Brabant", "pv31" = "Limburg",
+  "nl01" = "Nederland"
+)
+
+age_map <- c(
+  "70100" = "0-4", "70200" = "5-9", "70300" = "10-14", "70400" = "15-19", "70500" = "20-24",
+  "70600" = "25-29", "70700" = "30-34", "70800" = "35-39", "70900" = "40-44", "71000" = "45-49",
+  "71100" = "50-54", "71200" = "55-59", "71300" = "60-64", "71400" = "65-69", "71500" = "70-74",
+  "71600" = "75-79", "71700" = "80-84", "71800" = "85-89", "71900" = "90-94", "22000" = "95+"
+)
+
+kenmerken_map <- c(
+  "1014800" = "Owned Home", "1014950" = "Rented (No Benefit)", "1014900" = "Rented (With Benefit)"
+)
+
+years_to_plot <- c("2024jj00", "2014jj00", "2004jj00")
+
+table_ids <- c("83625NED", "86004NED", "71488NED")
+
+table_column_map <- list(
+  "83625NED" = c("RegioS", "Perioden", "GemiddeldeVerkoopprijs_1"),
+  "86004NED" = c("KenmerkenVanHuishoudens", "RegioS", "Perioden", "GemiddeldGestandaardiseerdInkomen_3", "Populatie"),
+  "71488NED" = c("Geslacht", "Leeftijd", "RegioS", "Perioden", "TotaalPersonenInHuishoudens_1", "Alleenstaand_4", "TotaalSamenwonendePersonen_5")
+)
+
+plot_filters <- list(
+  p1 = "RegioS == 'Nederland' & !is.na(Jaar) & !is.na(HuisPrijs)",
+  p2 = "RegioS %in% province_map[1:12] & Perioden == '2023jj00' & !is.na(HuisPrijs) & !is.na(RegioS)",
+  p3 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(GestandaardiseerdInkomen) & !is.na(Jaar)",
+  p4 = "RegioS %in% province_map[1:12] & Perioden == '2023jj00' & KenmerkenVanHuishoudens == 1050010 & !is.na(GestandaardiseerdInkomen) & !is.na(RegioS)",
+  p5 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(Jaar) & Jaar >= 2011 & !is.na(HousePriceIndex) & !is.na(IncomeLevelIndex)",
+  p6 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(Jaar) & Jaar >= 2011 & !is.na(Ratio)",
+  p7 = "RegioS == 'Nederland' & Perioden %in% years_to_plot & Geslacht == 'T001038' & !is.na(OpZichzelfWonend) & !is.na(AgeGroup)",
+  p8 = "RegioS == 'Nederland' & !is.na(HousingType) & Geslacht == 'T001038' & !is.na(GestandaardiseerdInkomen) & !is.na(Jaar)",
+  p9 = "RegioS == 'Nederland' & !is.na(Jaar) & !is.na(HuisPrijs)"
+)
+
+gis_to_regio <- c(
+  "Groningen" = "Groningen", "Friesland (NL)" = "Friesland", "Drenthe" = "Drenthe", "Overijssel" = "Overijssel",
+  "Flevoland" = "Flevoland", "Gelderland" = "Gelderland", "Utrecht" = "Utrecht", "Noord-Holland" = "Noord-Holland",
+  "Zuid-Holland" = "Zuid-Holland", "Zeeland" = "Zeeland", "Noord-Brabant" = "Noord-Brabant","Limburg (NL)" = "Limburg"
+)
+```
+
+# 2. CUSTOM THEMES
+
+```{r defining custom themes}
+my_theme <- theme_minimal() +
+  theme(plot.title = element_text(hjust = 0), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),
+        axis.text.x = element_text(angle = 45, hjust = 1))
+
+theme_map_clean <- theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10))
+```
+
+# Title Page
+
+Title Page
+
+Student names: Daan Blok
+
+Tutorial group: Tutorial 1 Group 6
+
+Tutorial lecturer: Jack Fitzgerald
+
+# Part 1 - Identify a Social Problem
+
+Use APA referencing throughout your document. [Here's a link to some explanation.](https://www.mendeley.com/guides/apa-citation-guide/)
 
 The housing market in the Netherlands is currently facing significant problems, especially for young people. There are long waiting lists for rental housing, and in addition, there are high rental prices in the private sector. The prices of owner-occupied homes have risen sharply in recent years, making it increasingly difficult for young people and young adults to find affordable housing (Wat Zijn Gevolgen van de Onzekere Woningmarkt Voor Jongeren? \| Nederlands Jeugdinstituut, z.d.-b). This has led to a historic low in the number of young people who have purchased a home. According to the CBS, there is a shortage of approximately 315,000 homes in the Netherlands (CBS Statline, z.d.). The research by Wiesel et al. (2021) highlights that there are significant differences between generations regarding income inequality. Baby boomers have benefited from relatively affordable housing, while younger generations, such as Generation X and millennials, face greater challenges in covering housing costs. This has direct implications for their economic opportunities. The rising house prices and increasing housing costs have contributed to the growing inequality in the housing market. Households with middle incomes are also experiencing increasing problems. Many of these households fall between the cracks, as their income is too high for social rental housing but too low for the private rental market. This results in limited access to affordable housing (Schilder et al., z.d.-b). Although the social rental sector in the Netherlands offers affordable rents in absolute terms, the pressure on this sector is increasing, particularly due to the growing number of households that rely on social housing (Schilder et al., z.d.-b). The combination of these factors makes the situation in the housing market particularly urgent and calls for attention from policymakers to address the issues and ensure access to affordable housing for young people and other vulnerable groups.
 
 **This leads to the following social problem: Access to affordable housing for vulnerable groups.**
 
+<<<<<<< HEAD
 ## Part 2.3 – Describe the Type of Variables
 
 The data sets used in this project contain variables related to socioeconomic status (SES), such as income levels and housing prices, across different municipalities in the Netherlands. These are some examples:
@@ -40,14 +135,302 @@ This means that the data was **not collected through interviews or surveys**, bu
 
 ```{r cars}
 summary(cars)
+=======
+## 1.1 Describe the Social Problem
+
+Include the following:
+
+-   Why is this relevant?
+
+-   ...
+
+# Part 2 - Data Sourcing
+
+## 2.1 Load in the data
+
+```{r loading_data}
+load_cbs_raw <- function(table_id) {
+  cbs_get_data(table_id, typed = FALSE)
+}
+
+raw_tables <- suppressWarnings(map(table_ids, load_cbs_raw))
+>>>>>>> ead76da49854737b806a1972cb811821f6b24a5d
 ```
 
-## Including Plots
+Three external datasets are retrieved directly from CBS via the internet, using a predefined vector of dataset codes to automate access and ensure reproducibility. The specific codes used are listed in the corresponding vector.
 
-You can also embed plots, for example:
+## 2.2 & 2.3 Short summary of the dataset and the variables included described
 
-```{r pressure, echo=FALSE}
-plot(pressure)
+```{r}
+print(head(raw_tables))
+
 ```
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+The script prints the three loaded datasets sequentially to provide an overview of their structure and content. All datasets are sourced from Statistics Netherlands (CBS) by their respective ID stated in the vector `table_ids`, a highly credible and authoritative institution that relies on administrative data rather than survey responses. This ensures high coverage, consistency, and reliability over time, making these datasets particularly suitable for research into long-term socioeconomic developments such as housing affordability. The first dataset contains three variables: `RegioS`, which denotes region codes defined in the dataset’s metadata and linked to the `province_map`; `Perioden`, which covers yearly data from 1995 to 2024, using the CBS format (e.g., 1995JJ00) that corresponds to calendar years; and `GemiddeldeVerkoopprijs_1`, which provides average sale prices of homes per region and year.
+
+The second dataset is more detailed, with 20 variables related to household characteristics. It includes `RegioS` and `Perioden` beginning from 2011, and `KenmerkenVanHuishoudens`, a coded variable that identifies household types—filtered for relevant categories using `kenmerken_map`. The variable `Populatie` distinguishes subpopulations, such as private households with or without students. Additionally, it contains both absolute (`ParticuliereHuishoudens_1`) and relative (`ParticuliereHuishoudensRelatief_2`) household counts. Crucially, this dataset includes several income indicators, such as average and median standardized income (`GemiddeldGestandaardiseerdInkomen_3`, `MediaanGestandaardiseerdInkomen_4`) and income decile groups (`GestandaardiseerdInkomen1e10Groep_7` to `_16`), making it an essential resource for assessing income distribution in relation to housing affordability.
+
+The third dataset complements the other two by focusing on the demographic composition of households and living arrangements. It includes 16 variables and covers the period from 2000 onward. The variable `Geslacht` distinguishes between all persons, men, and women using CBS codes (e.g., T001038, 3000, 4000). Age groups are captured via `Leeftijd`, defined in the metadata and referenced with the `age_map` vector. Like the others, it includes `RegioS` and `Perioden`. It offers a breakdown of household roles and living arrangements, including single-person households (`Alleenstaand_4`), cohabiting individuals, children living at home, and various couple structures (e.g., married/unmarried, with/without children). It also includes more specific roles such as single parents (`OuderInEenouderhuishouden_10`) and individuals in institutional households. This dataset enables detailed insight into who lives on themselves, how household compositions shift over time, and how these patterns differ by age and gender—important factors when evaluating housing needs and affordability.
+
+Together, these three datasets are highly complementary. The first provides a direct measure of housing prices, the second supplies critical socioeconomic and income-related variables, and the third offers insight into demographic and household structure changes over time. Their shared use of `RegioS` and `Perioden` allows for integration across geographic and temporal dimensions, making them well-suited for a multidimensional analysis of housing affordability.
+
+\
+However, several limitations must be acknowledged. First, the time coverage is inconsistent: the first dataset spans 1995–2024, the second starts in 2011, and the third from 2000. This mismatch complicates long-term trend analysis, especially for integrated models. Second, not all time points have complete data—some values are missing or not filled in. Third, the datasets contain many variables that are irrelevant to the specific research focus and must be filtered out, increasing preprocessing time. Lastly, while administrative sources offer consistency, they may overlook informal living situations or alternative housing arrangements not captured in official registers.
+
+Despite these challenges, the richness, credibility, and compatibility of these CBS datasets make them an excellent foundation for a thorough, data-driven analysis of housing affordability in the Netherlands.
+
+# Part 3 - Quantifying
+
+## 3.1 Data cleaning
+
+```{r removing unnecessary variables/rows and standarizing the values}
+clean_cbs_data <- function(df, table_id) {
+  df <- df %>%
+    mutate(across(c(RegioS, Perioden), ~ str_trim(tolower(as.character(.)))))
+  
+  colnames(df) <- str_trim(colnames(df))
+  
+  keep_cols <- table_column_map[[table_id]]
+  
+  keep_cols <- union(keep_cols, c("RegioS", "Perioden"))
+  
+  df <- df %>% select(any_of(keep_cols)) %>%
+    filter(RegioS %in% tolower(names(province_map))) %>%
+    {
+      if ("Geslacht" %in% names(.)) filter(., Geslacht == "T001038") 
+      else if ("Populatie" %in% names(.)) filter(., Populatie == "1050010") else .
+    }
+  
+  return(df)
+}
+
+cleaned_tables <- map2(raw_tables, table_ids, clean_cbs_data)
+
+```
+
+```{r merging the data}
+merged_df <- cleaned_tables %>%
+  reduce(full_join, by = c("RegioS", "Perioden")) %>%
+  mutate(across(where(is.character), str_trim))
+```
+
+```{r detecting numeric columns and converting them to numbers}
+numeric_like_cols <- names(merged_df)[
+  sapply(merged_df, function(col) mean(str_detect(col, "^\\s*[0-9,.]+\\s*$"), na.rm = TRUE) > 0.8)
+]
+
+merged_df <- merged_df %>%
+  mutate(across(all_of(numeric_like_cols), ~ parse_number(., na = c("", ".", "n.v.t.", "onbekend"))))
+```
+
+```{r Transforming columns }
+merged_df <- merged_df %>%
+  mutate(
+    RegioS = recode(RegioS, !!!province_map),
+    Jaar = as.integer(str_sub(Perioden, 1, 4)),
+    HuisPrijs = GemiddeldeVerkoopprijs_1 / 1000,
+    GestandaardiseerdInkomen = GemiddeldGestandaardiseerdInkomen_3,
+    AgeGroup = age_map[as.character(Leeftijd)],
+    HousingType = kenmerken_map[as.character(KenmerkenVanHuishoudens)],
+    YearStr = substr(Perioden, 1, 4),
+  )
+```
+
+Please use a separate 'R block' of code for each type of cleaning. So, e.g. one for missing values, a new one for removing unnecessary variables etc.
+
+To integrate multiple CBS datasets for analysis, we applied a structured cleaning and merging process using `dplyr` from the Tidyverse. Each dataset was first standardized by trimming whitespace, converting text to lowercase, and filtering for consistent identifiers (`RegioS`, `Perioden`) and relevant subgroups (e.g., total population or total by gender). This ensured alignment across tables and enabled accurate joins.
+
+The `full_join` merge was chosen to preserve all observations across datasets, minimizing data loss due to missing values in specific tables. This was the optimal choice given the diverse content of each dataset and the need for a comprehensive merged view. In an ideal setting where all three datasets started in the same year—or at least before 2007 to capture the 2008 financial crisis for event analysis—merging would have been more straightforward, potentially allowing for more efficient `inner_join` and better integrity validation. The `full_join` was particularly necessary here due to the differences in the starting years of the datasets. A harmonized national data repository with consistent keys and metadata across tables would further improve merge quality and analytical coherence.
+
+Each dataset was then subset to retain only relevant columns using a mapping list (`table_column_map`), making the merged output cleaner and more efficient for further analysis. Additionally, subpopulation filters (e.g., total population or total gender) were applied conditionally based on variable presence. This logic ensured consistency across years and tables, while minimizing manual intervention.
+
+Several types of data errors were identified and addressed systematically. First, numerous numeric variables were stored as strings and sometimes included invalid characters (e.g., ".", "n.v.t.", "onbekend"). To detect these issues, we scanned columns for numeric-like patterns and applied `parse_number()` with custom `na` values, which successfully recovered quantitative fields for analysis. Furthermore, Constants such as `province_map`, `age_map`, and `kenmerken_map` were defined at the top of the script to convert cryptic CBS codes into interpretable labels. This allowed for the generation of meaningful variables like `AgeGroup`, `HousingType`, and readable province names. Derived variables like `Jaar` (from `Perioden`) and `HuisPrijs` (scaled to thousands) were added to facilitate time-series plotting and unit consistency.
+
+Finally, a list of filter expressions (`plot_filters`) was applied programmatically to subset the data for specific plots and analyses. These filters, defined as character strings and parsed using `parse_expr()`, allowed us to modularly apply consistent inclusion criteria across visualizations, further enforcing clarity and reproducibility.
+
+## 3.2 Generate necessary variables
+
+Variable 1, 2, 3, and 4
+
+```{r generating necessary variables}
+reference_price_2011 <- merged_df %>%
+  filter(RegioS == "Nederland", Jaar == 2011) %>%
+  pull(HuisPrijs) %>%
+  first()
+
+reference_income_2011 <- merged_df %>%
+  filter(RegioS == "Nederland", Jaar == 2011) %>%
+  pull(GestandaardiseerdInkomen) %>%
+  first()
+
+merged_df <- merged_df %>%
+  mutate(    OpZichzelfWonend = 100 * (Alleenstaand_4 + TotaalSamenwonendePersonen_5) /      TotaalPersonenInHuishoudens_1,
+             HousePriceIndex = 100 * HuisPrijs / reference_price_2011,
+             IncomeLevelIndex = 100 * GestandaardiseerdInkomen / reference_income_2011,
+             Ratio = HousePriceIndex / IncomeLevelIndex)
+
+```
+
+To analyze trends in housing affordability in the Netherlands, we constructed several new variables using the `mutate()` function in R, which allows for efficient transformation and combination of existing variables.
+
+First, reference values for house prices and standardized income in 2011 were created by filtering the dataset for the national level (RegioS == "Nederland") and base year (Jaar == 2011). These values serve as a benchmark for the index construction that follows.
+
+The HousePriceIndex was calculated by dividing the nominal house price (HuisPrijs) by the national average in 2011 and multiplying by 100. Similarly, the IncomeLevelIndex was created by dividing the standardized income (GestandaardiseerdInkomen) by its 2011 national reference and scaling by 100. These indices allow for relative comparisons of housing prices and income levels over time, making temporal trends more interpretable regardless of absolute price or income levels.
+
+The Ratio variable was constructed by dividing the house price index by the income index. This ratio captures changes in housing affordability: values greater than 100 indicate that housing prices have increased more rapidly than income since 2011, suggesting a decline in affordability. This variable is central to our analysis, as it directly quantifies the relationship between income and housing costs.
+
+Finally, the variable OpZichzelfWonend represents the share of individuals living independently. It was computed by summing individuals who live alone (Alleenstaand_4) and those in cohabiting households (TotaalSamenwonendePersonen_5), dividing this by the total household population (TotaalPersonenInHuishoudens_1), and multiplying by 100. This measure is informative for examining demographic shifts in household composition, which may influence housing demand and affordability.
+
+These constructed variables will be used to visualize trends over time, and evaluate how housing costs have evolved relative to income—providing critical insights into the changing landscape of housing affordability in the Netherlands.
+
+```{r applying the list with filters on the plots}
+merged_df <- map(plot_filters, ~ merged_df %>% 
+                  filter(!!parse_expr(.x)))
+```
+
+## 3.3 Visualize temporal variation
+
+```{r visualize temporal variation}
+p1 <- merged_df$p1 %>%
+  ggplot(aes(x = Jaar, y = HuisPrijs)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  scale_x_continuous(breaks = seq(1995, 2024, by = 2)) +
+  labs(title = "Average House Price (Netherlands)", x = "Year", y = "Price (€ x 1,000)")
+
+p3 <- merged_df$p3 %>%
+  ggplot(aes(x = Jaar, y = GestandaardiseerdInkomen)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  labs(title = "Average Standardised Income (Netherlands)", x = "Year", y = "Income (€ x 1,000)")
+
+p5 <- merged_df$p5 %>%
+  ggplot(aes(x = Jaar)) +
+  geom_line(aes(y = HousePriceIndex, color = "House Prices"), linewidth = 1.2) +
+  geom_line(aes(y = IncomeLevelIndex, color = "Standardised Income"), linewidth = 1.2) +
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  scale_color_manual(values = c("House Prices" = "darkred", "Standardised Income" = "darkgreen")) +
+  labs(title = "House Price vs Standardised Income (Netherlands)", x = "Year", y = "Index (2011 = 100)", color = "Measure")
+
+p6 <- merged_df$p6 %>%
+  ggplot(aes(x = Jaar, y = Ratio)) +
+  geom_line(color = "purple", linewidth = 1.2) +
+  geom_hline(yintercept = 1, linetype = "dashed", color = "gray") +
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  labs(title = "Ratio of House Prices to Standardised Income", x = "Year", y = "Ratio")
+
+
+list(p1, p3, p5, p6) %>% walk(~ print(.x + my_theme))
+```
+
+The affordability of housing in the Netherlands has undergone significant changes over time, as illustrated by the four temporal visualisations. Figure 1 presents the development of average house prices from 1995 to 2023, showing a steady upward trend, with particularly sharp increases after 2015. Figure 2 complements this by depicting the evolution of average standardised disposable income since 2011, which shows only moderate growth in comparison.
+
+To better understand relative changes, Figure 3 presents both house prices and income as indexed values (2011 = 100). This comparison highlights that house prices have increased at a substantially faster rate than incomes, especially after 2013, suggesting a growing mismatch between the two variables. Finally, Figure 4 visualises the ratio of house prices to standardised income over time. The upward trajectory of this ratio indicates a declining affordability of housing, as house prices increasingly outpace income levels. The dashed reference line at a ratio of 1 serves as a benchmark: values above this threshold imply deteriorating affordability.
+
+These visualisations align closely with the research topic on housing affordability, providing clear evidence of a growing temporal gap between income and house prices. Time is consistently displayed on the x-axis, ensuring the temporal dimension is appropriately represented.
+
+## 3.4 Visualize spatial variation
+
+```{r visualise_map}
+# ========== 4. SPATIAL MAP ==========
+nl_map <- gisco_get_nuts(year = "2021",nuts_level = 2,country = "NL",resolution = "01",spatialtype = "RG") %>%
+  st_transform(crs = 28992) %>%
+  mutate(RegioS = recode(NAME_LATN, !!!gis_to_regio)) %>%
+  filter(!is.na(RegioS))
+
+nl_map_p2 <- left_join(nl_map, distinct(merged_df$p2, RegioS, .keep_all = TRUE), by = "RegioS")
+nl_map_p4 <- left_join(nl_map, distinct(merged_df$p4, RegioS, .keep_all = TRUE), by = "RegioS")
+
+# ========== Plotting ==========
+p2 <- ggplot(nl_map_p2) +
+  geom_sf(aes(fill = HuisPrijs), color = "white", size = 0.2) +
+  scale_fill_gradient(low = "skyblue", high = "darkblue", name = "Price (€ x 1,000)") +
+  labs(title = "Average House Prices by Province (2023)") 
+
+p4 <- ggplot(nl_map_p4) +
+  geom_sf(aes(fill = GestandaardiseerdInkomen), color = "white", size = 0.2) +
+  scale_fill_gradient(low = "skyblue", high = "darkblue", name = "Income (€ x 1,000)") +
+  labs(title = "Average Standardised Income by Province (2023)")
+
+list(p2, p4) %>% walk(~ print(.x + theme_map_clean))
+```
+
+The spatial visualisations above demonstrate how the problem of housing affordability varies across the provinces of the Netherlands in 2023. Figure 1 shows average house prices by province, indicating that housing is most expensive in the Randstad area—particularly in North Holland, South Holland, and Utrecht—while prices are relatively lower in peripheral provinces such as Groningen, Friesland, and Drenthe.
+
+Figure 2 displays the average standardised disposable income across the same provinces. Although higher income levels are also concentrated in the western part of the country, the regional relative variation in income is notably smaller than the relative variation in house prices. This imbalance implies that housing affordability issues are most severe in provinces where house prices significantly exceed income levels.
+
+This visualisation aligns with the topic of housing affordability by highlighting the spatial mismatch between house prices and incomes, helping to identify which regions face the greatest challenges. Mapping these indicators at the provincial level provides a clear geographic perspective on affordability, supporting evidence-based analysis of regional disparities.
+
+## 3.5 Visualize sub-population variation
+
+```{r visualise_subpopulations}
+p7 <- merged_df$p7 %>%
+  mutate(Year = factor(YearStr, levels = sort(unique(substr(years_to_plot, 1, 4))))) %>%
+  ggplot(aes(x = AgeGroup, y = OpZichzelfWonend, color = Year, group = Year)) +
+  geom_line(linewidth = 0.5) +
+  labs(title = "Share of Individuals Living on Themselves by Age Group (2004–2024)", x = "Age Group (Years)", y = "Individuals Living on Themselves (%)")
+
+p8 <- merged_df$p8 %>%
+  group_by(Jaar, HousingType) %>%
+  summarise(AverageIncome = mean(GestandaardiseerdInkomen, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = Jaar, y = AverageIncome, color = HousingType, linetype = HousingType)) +
+  geom_line(linewidth = 1.2) +
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  labs(title = "Average Standardised Income by Housing Type", x = "Year", y = "Income (€ x 1,000)", color = "Housing Type", linetype = "Housing Type")
+
+list(p7, p8) %>% walk(~ print(.x + my_theme))
+```
+
+The first visualisation shows the percentage of individuals living alone across different age groups for three reference years between 2004 and 2024. Notably, the proportion of young adults (aged 15–65) living independently has steadily declined over time, while the share of older adults (65 and above) living on themselves has increased. This trend suggests that fewer young people are establishing independent households, potentially delaying homeownership, while older adults are more likely to remain in their homes longer. Both phenomena significantly impact the housing market by reducing available housing turnover for younger generations and increasing demand among older age groups.
+
+The second visualisation presents average standardised income by housing tenure over the period 2011–2023. While younger individuals typically start their careers with lower incomes, this plot reveals that although the relative income gap between housing types has remained stable, the absolute difference in income levels between homeowners and renters has grown substantially over the past twelve years. This growing absolute gap exacerbates affordability challenges for lower-income renters, many of whom are young adults or households yet to enter the property market.
+
+These visualisations align closely with the topic of housing affordability by demonstrating that the problem manifests unevenly across sub-populations defined by age and housing tenure. The grouped plots and the selected variables effectively highlight how demographic and economic factors contribute to differential affordability pressures within the Dutch housing market.
+
+## 3.6 Event analysis
+
+Analyze the relationship between two variables.
+
+```{r event-analysis}
+p9 <- merged_df$p9 %>%
+  ggplot(aes(x = Jaar, y = HuisPrijs, color = RegioS)) +
+  geom_line(color = "blue", linewidth = 1.2) +
+  geom_vline(xintercept = 2008, linetype = "dotted", color = "black", linewidth = 1) +
+  scale_x_continuous(breaks = seq(1995, 2024, by = 2)) +
+  labs(title = "Average House Price (Netherlands)", x = "Year", y = "Price (€ x 1,000)", color = "Region")
+
+list(p9) %>% walk(~ print(.x + my_theme))
+```
+
+The event analysis visualisation depicts average house prices in the Netherlands over time, with a specific focus on the year 2008, marked by a vertical dotted line. This year corresponds to the global financial crisis, a significant event that had a marked impact on housing markets worldwide.
+
+Before 2008, house prices exhibited a steady upward trend. However, the visualization shows a clear disruption around this event: house prices plateaued and even declined briefly following 2008, reflecting the crisis’s immediate effect on the housing market. After this period, prices resumed their upward trajectory, but with increased volatility and sharper increases in subsequent years.
+
+This visualization is directly relevant to the topic of housing affordability, as it highlights how a major economic event can temporarily alter housing price dynamics. The post-crisis acceleration in prices, despite income growth remaining comparatively modest, suggests that affordability pressures intensified after 2008. Understanding such event-driven changes is critical for analyzing the temporal fluctuations and risks inherent in the housing market.
+
+# Part 4 - Discussion
+
+## 4.1 Discuss your findings
+
+In this report, we examined how the affordability of housing in the Netherlands is developing in relation to income levels, geographical differences and demographic characteristics. The CBS data used provides insight into both absolute and relative trends in house prices and standardised incomes. By creating new variables such as the HousePriceIndex, IncomeLevelIndex and the Ratio (house price/income index), we were able to quantify these developments.
+
+The temporal visualisations show that average house prices in the Netherlands have risen significantly since 2013, while standardised income has increased to a lesser extent over the same period. As a result, the Ratio of house price to income has been structurally above the reference line of 1 since 2013. This implies a deterioration in the affordability of housing, with house prices rising faster than household income. The visualisation of both indices clearly shows this gap over time.
+
+The regional visualisations show that there are significant geographical differences in both house prices and incomes. The most expensive provinces are concentrated in the Randstad (North Holland, Utrecht, South Holland), while the lowest prices are found in peripheral areas such as Groningen and Zeeland. Although income levels also vary by province, this variation is less pronounced than for house prices. This points to greater pressure on affordability in provinces with high house prices and relatively moderate incomes.
+
+The analysis of subpopulations shows that the proportion of young adults living independently declined in the period 2004–2024, while older people are more likely to continue living on their own. This has implications for the availability of housing for young people. In addition, the distribution of standardised income per housing type shows that tenants—with or without housing benefit—have structurally lower incomes than homeowners, with an increasing difference in absolute terms. These patterns underline that affordable housing is particularly problematic for younger and lower income groups.
+
+Finally, the event analysis of the 2008 financial crisis shows that this event marked a clear break in the development of house prices. Although prices initially fell or stagnated, an accelerated rise set in after 2013, contributing to the current problems in the housing market. The visualisation illustrates how external macroeconomic shocks can have long-term effects on house prices and thus on affordability.
+
+In summary, this analysis shows that the affordability of housing in the Netherlands is under structural pressure, with clear temporal trends, regional inequalities and differences between population groups. The variables and visualisations used provide quantitative support for the social problem outlined in the introduction: a growing group of vulnerable households, especially young people and lower income groups, have increasingly less access to affordable housing.
+
+# Part 5 - Reproducibility
+
+## 5.1 Github repository link
+
+Provide the link to your PUBLIC repository here: ...
+
+## 5.2 Reference list
+
+Use APA referencing throughout your document.
+
+
