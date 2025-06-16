@@ -1,6 +1,9 @@
-------------------------------------------------------------------------
-
-title: "PFE group 6" author: "Daan Blok (2821386)," date: "`r Sys.Date()`" output: pdf_document
+---
+title: "PFE group 6" 
+author: "Daan Blok (2821386), Daniel ten Broeke (), Dries A. M. Berns (), Kon Ntovas (), Mariah P. Mendoza (), Sofie A. Hopman (), Vlad A. Partenie ()" 
+date: "`r Sys.Date()`" 
+output: pdf_document
+---
 
 # Set-up your environment
 
