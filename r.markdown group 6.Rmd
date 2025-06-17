@@ -433,4 +433,12 @@ Provide the link to your PUBLIC repository here: ...
 
 Use APA referencing throughout your document.
 
+Github link: https://github.com/Daan-Blok/ProgrammingForEconomists.git
+
+Wat zijn gevolgen van de onzekere woningmarkt voor jongeren? | Nederlands Jeugdinstituut. (z.d.-b). https://www.nji.nl/op-jezelf-wonen/wat-zijn-gevolgen-van-de-onzekere-woningmarkt-voor-jongeren
+
+Wiesel, I., Ralston, L., & Stone, W. (2021). Understanding after-housing disposable income effects on rising inequality. Housing Studies, 38(2), 290–306. https://doi.org/10.1080/02673037.2021.1882661
+CBS Statline. (z.d.). https://opendata.cbs.nl/ 
+
+Schilder, F., Scherpenisse, R., PBL Netherlands, & Tiwos. (z.d.). Affordable housing in the Netherlands. https://www.pbl.nl/sites/default/files/downloads/PBL2018_Policy-and-practice-affordable-housing-in-the-Netherlands_3336_0.pdf
 
