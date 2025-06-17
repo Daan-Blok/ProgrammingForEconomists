@@ -94,7 +94,7 @@ theme_map_clean <- theme_minimal() +
 
 Title Page
 
-Student names: Daan Blok
+Student names: Daan Blok,
 
 Tutorial group: Tutorial 1 Group 6
 
@@ -106,36 +106,6 @@ Use APA referencing throughout your document. [Here's a link to some explanation
 
 The housing market in the Netherlands is currently facing significant problems, especially for young people. There are long waiting lists for rental housing, and in addition, there are high rental prices in the private sector. The prices of owner-occupied homes have risen sharply in recent years, making it increasingly difficult for young people and young adults to find affordable housing (Wat Zijn Gevolgen van de Onzekere Woningmarkt Voor Jongeren? \| Nederlands Jeugdinstituut, z.d.-b). This has led to a historic low in the number of young people who have purchased a home. According to the CBS, there is a shortage of approximately 315,000 homes in the Netherlands (CBS Statline, z.d.). The research by Wiesel et al. (2021) highlights that there are significant differences between generations regarding income inequality. Baby boomers have benefited from relatively affordable housing, while younger generations, such as Generation X and millennials, face greater challenges in covering housing costs. This has direct implications for their economic opportunities. The rising house prices and increasing housing costs have contributed to the growing inequality in the housing market. Households with middle incomes are also experiencing increasing problems. Many of these households fall between the cracks, as their income is too high for social rental housing but too low for the private rental market. This results in limited access to affordable housing (Schilder et al., z.d.-b). Although the social rental sector in the Netherlands offers affordable rents in absolute terms, the pressure on this sector is increasing, particularly due to the growing number of households that rely on social housing (Schilder et al., z.d.-b). The combination of these factors makes the situation in the housing market particularly urgent and calls for attention from policymakers to address the issues and ensure access to affordable housing for young people and other vulnerable groups.
 
-**This leads to the following social problem: Access to affordable housing for vulnerable groups.**
-
-<<<<<<< HEAD
-## Part 2.3 – Describe the Type of Variables
-
-The data sets used in this project contain variables related to socioeconomic status (SES), such as income levels and housing prices, across different municipalities in the Netherlands. These are some examples:
-
-- **Median Income (from data set 71488NED)** – A numeric variable representing the median standardized income per household.  
-- **Average Housing Price (from data set 83625NED)** – A numeric variable showing the average transaction price of homes.  
-- **Housing Stock by Type (from data set 86004NED)** – Numeric variables showing the number of dwellings, categorized by ownership and dwelling type.  
-- **Municipality** – A categorical variable used to identify the region for all observations.  
-- **Year** – A time-based variable indicating when the data was collected.  
-
-### Type of Information
-
-The variables in these data sets provide **socioeconomic status (SES)** information. They do **not** contain health data.
-
-### How the Data Was Collected
-
-The data sets are compiled from **administrative sources**, such as:
-
-- The Dutch Tax Authority (for income data)  
-- The Land Registry (for housing prices)  
-- Local municipal records (for housing stock)  
-
-This means that the data was **not collected through interviews or surveys**, but from official government databases and registries. This method ensures consistency and reliability across all municipalities.
-
-```{r cars}
-summary(cars)
-=======
 ## 1.1 Describe the Social Problem
 
 Include the following:
@@ -154,7 +124,6 @@ load_cbs_raw <- function(table_id) {
 }
 
 raw_tables <- suppressWarnings(map(table_ids, load_cbs_raw))
->>>>>>> ead76da49854737b806a1972cb811821f6b24a5d
 ```
 
 Three external datasets are retrieved directly from CBS via the internet, using a predefined vector of dataset codes to automate access and ensure reproducibility. The specific codes used are listed in the corresponding vector.
@@ -174,7 +143,6 @@ The third dataset complements the other two by focusing on the demographic compo
 
 Together, these three datasets are highly complementary. The first provides a direct measure of housing prices, the second supplies critical socioeconomic and income-related variables, and the third offers insight into demographic and household structure changes over time. Their shared use of `RegioS` and `Perioden` allows for integration across geographic and temporal dimensions, making them well-suited for a multidimensional analysis of housing affordability.
 
-\
 However, several limitations must be acknowledged. First, the time coverage is inconsistent: the first dataset spans 1995–2024, the second starts in 2011, and the third from 2000. This mismatch complicates long-term trend analysis, especially for integrated models. Second, not all time points have complete data—some values are missing or not filled in. Third, the datasets contain many variables that are irrelevant to the specific research focus and must be filtered out, increasing preprocessing time. Lastly, while administrative sources offer consistency, they may overlook informal living situations or alternative housing arrangements not captured in official registers.
 
 Despite these challenges, the richness, credibility, and compatibility of these CBS datasets make them an excellent foundation for a thorough, data-driven analysis of housing affordability in the Netherlands.
@@ -367,7 +335,7 @@ p7 <- merged_df$p7 %>%
   mutate(Year = factor(YearStr, levels = sort(unique(substr(years_to_plot, 1, 4))))) %>%
   ggplot(aes(x = AgeGroup, y = OpZichzelfWonend, color = Year, group = Year)) +
   geom_line(linewidth = 0.5) +
-  labs(title = "Share of Individuals Living on Themselves by Age Group (2004–2024)", x = "Age Group (Years)", y = "Individuals Living on Themselves (%)")
+  labs(title = "Share of Individuals Living Indepent by Age Group", x = "Age Group (Years)", y = "Individuals Living Indepent (%)")
 
 p8 <- merged_df$p8 %>%
   group_by(Jaar, HousingType) %>%
@@ -405,9 +373,7 @@ The event analysis visualisation depicts average house prices in the Netherlands
 
 Before 2008, house prices exhibited a steady upward trend. However, the visualization shows a clear disruption around this event: house prices plateaued and even declined briefly following 2008, reflecting the crisis’s immediate effect on the housing market. After this period, prices resumed their upward trajectory, but with increased volatility and sharper increases in subsequent years.
 
-This visualization is directly relevant to the topic of housing affordability, as it highlights how a major economic event can temporarily alter housing price dynamics. The post-crisis acceleration in prices, despite income growth remaining comparatively modest, suggests that affordability pressures intensified after 2008. Understanding such event-driven changes is critical for analyzing the temporal fluctuations and risks inherent in the housing market.
-
-# Part 4 - Discussion
+This visualization is directly relevant to the topic of housing affordability, as it highlights how a major economic event can temporarily alter housing price dynamics. The post-crisis acceleration in prices, despite income growth remaining comparatively modest, suggests that affordability pressures intensified after 2008. Understanding such event-driven changes is critical for analyzing the temporal fluctuations and risks inherent in the housing market. \# Part 4 - Discussion
 
 ## 4.1 Discuss your findings
 
@@ -427,18 +393,20 @@ In summary, this analysis shows that the affordability of housing in the Netherl
 
 ## 5.1 Github repository link
 
-Provide the link to your PUBLIC repository here: ...
+Provide the link to your PUBLIC repository here: Github link: <https://github.com/Daan-Blok/ProgrammingForEconomists.git>
 
 ## 5.2 Reference list
 
 Use APA referencing throughout your document.
 
-Github link: https://github.com/Daan-Blok/ProgrammingForEconomists.git
+Wat zijn gevolgen van de onzekere woningmarkt voor jongeren? \| Nederlands Jeugdinstituut. (z.d.-b). <https://www.nji.nl/op-jezelf-wonen/wat-zijn-gevolgen-van-de-onzekere-woningmarkt-voor-jongeren>
 
-Wat zijn gevolgen van de onzekere woningmarkt voor jongeren? | Nederlands Jeugdinstituut. (z.d.-b). https://www.nji.nl/op-jezelf-wonen/wat-zijn-gevolgen-van-de-onzekere-woningmarkt-voor-jongeren
+Wiesel, I., Ralston, L., & Stone, W. (2021). Understanding after-housing disposable income effects on rising inequality. Housing Studies, 38(2), 290–306. <https://doi.org/10.1080/02673037.2021.1882661> CBS Statline. (z.d.). <https://opendata.cbs.nl/>
 
-Wiesel, I., Ralston, L., & Stone, W. (2021). Understanding after-housing disposable income effects on rising inequality. Housing Studies, 38(2), 290–306. https://doi.org/10.1080/02673037.2021.1882661
-CBS Statline. (z.d.). https://opendata.cbs.nl/ 
+Schilder, F., Scherpenisse, R., PBL Netherlands, & Tiwos. (z.d.). Affordable housing in the Netherlands. <https://www.pbl.nl/sites/default/files/downloads/PBL2018_Policy-and-practice-affordable-housing-in-the-Netherlands_3336_0.pdf>
 
-Schilder, F., Scherpenisse, R., PBL Netherlands, & Tiwos. (z.d.). Affordable housing in the Netherlands. https://www.pbl.nl/sites/default/files/downloads/PBL2018_Policy-and-practice-affordable-housing-in-the-Netherlands_3336_0.pdf
+<https://www.cbs.nl/nl-nl/onze-diensten/methoden/onderzoeksomschrijvingen/korte-onderzoeksbeschrijvingen/integraal-inkomens-en-vermogensonderzoek> 86004NED
 
+De cijfers in deze tabel zijn direct definitief. De berekening van deze cijfers is gebaseerd op het aantal notaristransacties dat iedere maand door het Kadaster wordt vastgesteld. Een revisie van de cijfers vindt alleen bij uitzondering plaats 83625NED
+
+<https://www.cbs.nl/nl-nl/onze-diensten/methoden/onderzoeksomschrijvingen/korte-onderzoeksomschrijvingen/stelsel-van-sociaal-statistische-bestanden--ssb--> 71488ned

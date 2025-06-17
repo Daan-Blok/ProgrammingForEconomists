@@ -185,7 +185,7 @@ p7 <- merged_df$p7 %>%
   mutate(Year = factor(YearStr, levels = sort(unique(substr(years_to_plot, 1, 4))))) %>%
   ggplot(aes(x = AgeGroup, y = OpZichzelfWonend, color = Year, group = Year)) +
   geom_line(linewidth = 0.5) +
-  labs(title = "Share of Individuals Living Alone by Age Group (2004–2024)", x = "Age Group (Years)", y = "Individuals Living Alone (%)")
+  labs(title = "Share of Individuals Living Indepent by Age Group", x = "Age Group (Years)", y = "Individuals Living Indepent (%)")
 
 p8 <- merged_df$p8 %>%
   group_by(Jaar, HousingType) %>%
