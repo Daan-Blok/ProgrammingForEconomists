@@ -1,10 +1,13 @@
 library(tidyverse)
 library(scales)
 library(cbsodataR)
+library(rlang)
+library(sf)
+library(giscoR)
 
 # ========== 1. CONSTANTS & MAPPINGS ==========
 province_map <- c(
-  "pv20" = "Groningen", "pv21" = "Fryslân", "pv22" = "Drenthe", "pv23" = "Overijssel",
+  "pv20" = "Groningen", "pv21" = "Friesland", "pv22" = "Drenthe", "pv23" = "Overijssel",
   "pv24" = "Flevoland", "pv25" = "Gelderland", "pv26" = "Utrecht", "pv27" = "Noord-Holland",
   "pv28" = "Zuid-Holland", "pv29" = "Zeeland", "pv30" = "Noord-Brabant", "pv31" = "Limburg",
   "nl01" = "Nederland"
@@ -31,10 +34,35 @@ table_column_map <- list(
   "71488NED" = c("Geslacht", "Leeftijd", "RegioS", "Perioden", "TotaalPersonenInHuishoudens_1", "Alleenstaand_4", "TotaalSamenwonendePersonen_5")
 )
 
+plot_filters <- list(
+  p1 = "RegioS == 'Nederland' & !is.na(Jaar) & !is.na(HuisPrijs)",
+  p2 = "RegioS %in% province_map[1:12] & Perioden == '2023jj00' & !is.na(HuisPrijs) & !is.na(RegioS)",
+  p3 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(GestandaardiseerdInkomen) & !is.na(Jaar)",
+  p4 = "RegioS %in% province_map[1:12] & Perioden == '2023jj00' & KenmerkenVanHuishoudens == 1050010 & !is.na(GestandaardiseerdInkomen) & !is.na(RegioS)",
+  p5 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(Jaar) & Jaar >= 2011 & !is.na(HousePriceIndex) & !is.na(IncomeLevelIndex)",
+  p6 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(Jaar) & Jaar >= 2011 & !is.na(Ratio)",
+  p7 = "RegioS == 'Nederland' & Perioden %in% years_to_plot & Geslacht == 'T001038' & !is.na(OpZichzelfWonend) & !is.na(AgeGroup)",
+  p8 = "RegioS == 'Nederland' & !is.na(HousingType) & Geslacht == 'T001038' & !is.na(GestandaardiseerdInkomen) & !is.na(Jaar)",
+  p9 = "RegioS == 'Nederland' & !is.na(Jaar) & !is.na(HuisPrijs)"
+)
+
+gis_to_regio <- c(
+  "Groningen" = "Groningen", "Friesland (NL)" = "Friesland", "Drenthe" = "Drenthe", "Overijssel" = "Overijssel",
+  "Flevoland" = "Flevoland", "Gelderland" = "Gelderland", "Utrecht" = "Utrecht", "Noord-Holland" = "Noord-Holland",
+  "Zuid-Holland" = "Zuid-Holland", "Zeeland" = "Zeeland", "Noord-Brabant" = "Noord-Brabant","Limburg (NL)" = "Limburg"
+)
+
 # ========== 2. CUSTOM THEMES ==========
 my_theme <- theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  theme(plot.title = element_text(hjust = 0), 
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10),
+        axis.text.x = element_text(angle = 45, hjust = 1))
 
+theme_map_clean <- theme_minimal() +
+  theme(axis.text = element_blank(),
+        axis.title = element_blank(),
+        panel.grid = element_blank(),
+        plot.margin = margin(t = 10, r = 10, b = 10, l = 10))
 # ========== 3. LOAD, CLEAN, MERGE & TRANSFORM ==========
 load_cbs_raw <- function(table_id) {
   cbs_get_data(table_id, typed = FALSE)
@@ -73,13 +101,14 @@ numeric_like_cols <- names(merged_df)[
 ]
 
 merged_df <- merged_df %>%
-  mutate(across(all_of(numeric_like_cols), ~ parse_number(., na = c("", ".", "n.v.t.", "onbekend"))))%>%
+  mutate(across(all_of(numeric_like_cols), ~ parse_number(., na = c("", ".", "n.v.t.", "onbekend"))))
+
+merged_df <- merged_df %>%
   mutate(
     RegioS = recode(RegioS, !!!province_map),
     Jaar = as.integer(str_sub(Perioden, 1, 4)),
     HuisPrijs = GemiddeldeVerkoopprijs_1 / 1000,
     GestandaardiseerdInkomen = GemiddeldGestandaardiseerdInkomen_3,
-    OpZichzelfWonend = 100 * (Alleenstaand_4 + TotaalSamenwonendePersonen_5) / TotaalPersonenInHuishoudens_1,
     AgeGroup = age_map[as.character(Leeftijd)],
     HousingType = kenmerken_map[as.character(KenmerkenVanHuishoudens)],
     YearStr = substr(Perioden, 1, 4),
@@ -96,87 +125,83 @@ reference_income_2011 <- merged_df %>%
   first()
 
 merged_df <- merged_df %>%
-  mutate(    HousePriceIndex = 100 * HuisPrijs / reference_price_2011,
+  mutate(    OpZichzelfWonend = 100 * (Alleenstaand_4 + TotaalSamenwonendePersonen_5) / TotaalPersonenInHuishoudens_1,
+             HousePriceIndex = 100 * HuisPrijs / reference_price_2011,
              IncomeLevelIndex = 100 * GestandaardiseerdInkomen / reference_income_2011,
              Ratio = HousePriceIndex / IncomeLevelIndex)
 
+merged_df <- map(plot_filters, ~ merged_df %>% 
+                   filter(!!parse_expr(.x)))
+
 print(head(merged_df))
+# ========== 4. SPATIAL MAP ==========
+nl_map <- gisco_get_nuts(year = "2021",nuts_level = 2,country = "NL",resolution = "01",spatialtype = "RG") %>%
+  st_transform(crs = 28992) %>%
+  mutate(RegioS = recode(NAME_LATN, !!!gis_to_regio)) %>%
+  filter(!is.na(RegioS))
+
+nl_map_p2 <- left_join(nl_map, distinct(merged_df$p2, RegioS, .keep_all = TRUE), by = "RegioS")
+nl_map_p4 <- left_join(nl_map, distinct(merged_df$p4, RegioS, .keep_all = TRUE), by = "RegioS")
+
 # ========== 4. PLOTS ==========
-p1 <- merged_df %>%
-  filter(RegioS == "Nederland", !is.na(Jaar)) %>%
+p1 <- merged_df$p1 %>%
   ggplot(aes(x = Jaar, y = HuisPrijs)) +
   geom_line(color = "blue", linewidth = 1.2) +
-  scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE), max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
-  labs(title = "Average House Price (Netherlands)", x = "Year", y = "House Price (€ x 1,000)")
+  scale_x_continuous(breaks = seq(1995, 2024, by = 2)) +
+  labs(title = "Average House Price (Netherlands)", x = "Year", y = "Price (€ x 1,000)")
 
-p2 <- merged_df %>%
-  filter(RegioS %in% province_map[1:12], Perioden == "2024jj00") %>%
-  distinct(RegioS, .keep_all = TRUE) %>%
-  ggplot(aes(x = fct_reorder(RegioS, HuisPrijs), y = 1, fill = HuisPrijs)) +
-  geom_tile(color = "white", height = 0.8) +
-  scale_fill_gradient(low = "skyblue", high = "darkblue", name = "House Price (€ x 1,000)") +
-  scale_y_continuous(expand = c(0, 0), breaks = NULL, labels = NULL) +
-  labs(title = "      Average House Prices by Province (2024)", x = "Province", y = NULL) +
-  coord_cartesian(xlim = c(0.3, NA))
+p2 <- ggplot(nl_map_p2) +
+  geom_sf(aes(fill = HuisPrijs), color = "white", size = 0.2) +
+  scale_fill_gradient(low = "skyblue", high = "darkblue", name = "Price (€ x 1,000)") +
+  labs(title = "Average House Prices by Province (2023)") 
 
-p3 <- merged_df %>%
-  filter(RegioS == "Nederland", KenmerkenVanHuishoudens == 1050010, !is.na(GestandaardiseerdInkomen)) %>%
+p3 <- merged_df$p3 %>%
   ggplot(aes(x = Jaar, y = GestandaardiseerdInkomen)) +
   geom_line(color = "blue", linewidth = 1.2) +
-  scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE), max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
-  labs(title = "Average Disposable Income (Netherlands)", x = "Year", y = "Disposable Income (€ x 1,000)")
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  labs(title = "Average Standardised Income (Netherlands)", x = "Year", y = "Income (€ x 1,000)")
 
-p4 <- merged_df %>%
-  filter(RegioS %in% province_map[1:12], Perioden == "2023jj00", KenmerkenVanHuishoudens == 1050010) %>%
-  distinct(RegioS, .keep_all = TRUE) %>%
-  ggplot(aes(x = fct_reorder(RegioS, GestandaardiseerdInkomen), y = 1, fill = GestandaardiseerdInkomen)) +
-  geom_tile(color = "white", height = 0.8) +
-  scale_fill_gradient(low = "skyblue", high = "darkblue", name = "Disposable Income (€ x 1,000)") +
-  scale_y_continuous(expand = c(0, 0), breaks = NULL, labels = NULL) +
-  labs(title = "      Average Disposable Income by Province (2023)", x = "Province", y = NULL) +
-  coord_cartesian(xlim = c(0.3, NA))
+p4 <- ggplot(nl_map_p4) +
+  geom_sf(aes(fill = GestandaardiseerdInkomen), color = "white", size = 0.2) +
+  scale_fill_gradient(low = "skyblue", high = "darkblue", name = "Income (€ x 1,000)") +
+  labs(title = "Average Standardised Income by Province (2023)")
 
-p5 <- merged_df %>%
-  filter(RegioS == "Nederland", KenmerkenVanHuishoudens == 1050010, !is.na(Jaar), Jaar >= 2011) %>%
+p5 <- merged_df$p5 %>%
   ggplot(aes(x = Jaar)) +
   geom_line(aes(y = HousePriceIndex, color = "House Prices"), linewidth = 1.2) +
-  geom_line(aes(y = IncomeLevelIndex, color = "Disposable Income"), linewidth = 1.2) +
-  scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE), max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
-  scale_color_manual(values = c("House Prices" = "darkred", "Disposable Income" = "darkgreen")) +
-  labs(title = "Average House Price vs Average Disposable Income (Index, Netherlands)", x = "Year", y = "Index (2011 = 100)", color = "Measure")
+  geom_line(aes(y = IncomeLevelIndex, color = "Standardised Income"), linewidth = 1.2) +
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  scale_color_manual(values = c("House Prices" = "darkred", "Standardised Income" = "darkgreen")) +
+  labs(title = "House Price vs Standardised Income (Netherlands)", x = "Year", y = "Index (2011 = 100)", color = "Measure")
 
-p6 <- merged_df %>%
-  filter(RegioS == "Nederland", KenmerkenVanHuishoudens == 1050010, !is.na(Jaar), Jaar >= 2011) %>%
+p6 <- merged_df$p6 %>%
   ggplot(aes(x = Jaar, y = Ratio)) +
   geom_line(color = "purple", linewidth = 1.2) +
   geom_hline(yintercept = 1, linetype = "dashed", color = "gray") +
-  scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE), max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
-  labs(title = "Ratio of Average House Prices to Average Disposable Income", x = "Year", y = "Ratio")
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  labs(title = "Ratio of House Prices to Standardised Income", x = "Year", y = "Ratio")
 
-p7 <- merged_df %>%
-  filter(RegioS == "Nederland", Perioden %in% years_to_plot, Geslacht == "T001038") %>%
-  filter(!is.na(OpZichzelfWonend), !is.na(AgeGroup)) %>%
+p7 <- merged_df$p7 %>%
   mutate(Year = factor(YearStr, levels = sort(unique(substr(years_to_plot, 1, 4))))) %>%
   ggplot(aes(x = AgeGroup, y = OpZichzelfWonend, color = Year, group = Year)) +
   geom_line(linewidth = 0.5) +
   labs(title = "Share of Individuals Living Alone by Age Group (2004–2024)", x = "Age Group (Years)", y = "Individuals Living Alone (%)")
 
-p8 <- merged_df %>%
-  filter(RegioS == "Nederland", !is.na(HousingType), Geslacht == "T001038") %>%
+p8 <- merged_df$p8 %>%
   group_by(Jaar, HousingType) %>%
   summarise(AverageIncome = mean(GestandaardiseerdInkomen, na.rm = TRUE), .groups = "drop") %>%
   ggplot(aes(x = Jaar, y = AverageIncome, color = HousingType, linetype = HousingType)) +
   geom_line(linewidth = 1.2) +
-  scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE), max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
-  labs(title = "Average Disposable Income by Housing Type", x = "Year", y = "Disposable Income (€ x 1,000)", color = "Housing Type", linetype = "Housing Type")
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  labs(title = "Average Standardised Income by Housing Type", x = "Year", y = "Income (€ x 1,000)", color = "Housing Type", linetype = "Housing Type")
 
-p9 <- merged_df %>%
-  filter(RegioS == "Nederland", !is.na(Jaar)) %>%
+p9 <- merged_df$p9 %>%
   ggplot(aes(x = Jaar, y = HuisPrijs, color = RegioS)) +
   geom_line(color = "blue", linewidth = 1.2) +
   geom_vline(xintercept = 2008, linetype = "dotted", color = "black", linewidth = 1) +
-  scale_x_continuous(breaks = seq(min(merged_df$Jaar, na.rm = TRUE), max(merged_df$Jaar, na.rm = TRUE), by = 2)) +
-  labs(title = "Average House Price (Netherlands)", x = "Year", y = "Housing Price (€ x 1,000)", color = "Region")
+  scale_x_continuous(breaks = seq(1995, 2024, by = 2)) +
+  labs(title = "Average House Price (Netherlands)", x = "Year", y = "Price (€ x 1,000)", color = "Region")
 
 # ========== 5. PRINT ==========
-list(p1, p2, p3, p4, p5, p6, p7, p8, p9) %>% walk(~ print(.x + my_theme))
+list(p1, p3, p5, p6, p7, p8, p9) %>% walk(~ print(.x + my_theme))
+list(p2, p4) %>% walk(~ print(.x + theme_map_clean))
