@@ -41,7 +41,7 @@ plot_filters <- list(
   p4 = "RegioS %in% province_map[1:12] & Perioden == '2023jj00' & KenmerkenVanHuishoudens == 1050010 & !is.na(GestandaardiseerdInkomen) & !is.na(RegioS)",
   p5 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(Jaar) & Jaar >= 2011 & !is.na(HousePriceIndex) & !is.na(IncomeLevelIndex)",
   p6 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(Jaar) & Jaar >= 2011 & !is.na(Ratio)",
-  p7 = "RegioS == 'Nederland' & Perioden %in% years_to_plot & Geslacht == 'T001038' & !is.na(OpZichzelfWonend) & !is.na(AgeGroup)",
+  p7 = "RegioS == 'Nederland' & is.na(KenmerkenVanHuishoudens) & is.na(Populatie) & Geslacht == 'T001038' & !is.na(OpZichzelfWonend) & !is.na(AgeGroup) & Jaar == 2024",
   p8 = "RegioS == 'Nederland' & !is.na(HousingType) & Geslacht == 'T001038' & !is.na(GestandaardiseerdInkomen) & !is.na(Jaar)",
   p9 = "RegioS == 'Nederland' & !is.na(Jaar) & !is.na(HuisPrijs)"
 )
@@ -183,8 +183,8 @@ p6 <- merged_df$p6 %>%
 
 p7 <- merged_df$p7 %>%
   mutate(Year = factor(YearStr, levels = sort(unique(substr(years_to_plot, 1, 4))))) %>%
-  ggplot(aes(x = AgeGroup, y = OpZichzelfWonend, color = Year, group = Year)) +
-  geom_line(linewidth = 0.5) +
+  ggplot(aes(x = AgeGroup, y = OpZichzelfWonend, fill = AgeGroup)) +
+  geom_boxplot() +
   labs(title = "Share of Individuals Living Indepent by Age Group", x = "Age Group (Years)", y = "Individuals Living Indepent (%)")
 
 p8 <- merged_df$p8 %>%
