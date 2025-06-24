@@ -1,6 +1,6 @@
 ---
 title: "Programming for Economists Group 6" 
-author: "Daan Blok (2821386), Daniel ten Broeke (), Dries A. M. Berns (), Kon Ntovas (), Mariah P. Mendoza (), Sofie A. Hopman (2745673), Vlad A. Partenie ()" 
+author: "Daan Blok (2821386), Daniel ten Broeke (2823206), Dries A. M. Berns (2769645), Konstantinos Ntovas (2860092), Mariah P. Mendoza (2856166), Sofie A. Hopman (2745673), Vlad A. Partenie (2838992)" 
 date: "`r Sys.Date()`" 
 output: pdf_document
 ---
