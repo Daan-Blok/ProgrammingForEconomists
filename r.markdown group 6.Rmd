@@ -1,11 +1,14 @@
 ---
-title: "PFE group 6" 
+title: "Programming for Economists Group 6" 
 author: "Daan Blok (2821386), Daniel ten Broeke (), Dries A. M. Berns (), Kon Ntovas (), Mariah P. Mendoza (), Sofie A. Hopman (2745673), Vlad A. Partenie ()" 
 date: "`r Sys.Date()`" 
 output: pdf_document
 ---
 
 # Set-up your environment
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
 
 ```{r package_install, include=FALSE}
 #install.packages("tidyverse")
@@ -14,6 +17,7 @@ output: pdf_document
 #install.packages("rlang")
 #install.packages("sf")
 #install.packages("giscoR")
+#install.packages("tinytex")
 ```
 
 ```{r packages}
@@ -23,6 +27,7 @@ library(cbsodataR)
 library(rlang)
 library(sf)
 library(giscoR)
+library(tinytex)
 ```
 
 # 1. CONSTANTS & MAPPINGS
@@ -36,10 +41,10 @@ province_map <- c(
 )
 
 age_map <- c(
-  "70100" = "0-4", "70200" = "5-9", "70300" = "10-14", "70400" = "15-19", "70500" = "20-24",
-  "70600" = "25-29", "70700" = "30-34", "70800" = "35-39", "70900" = "40-44", "71000" = "45-49",
-  "71100" = "50-54", "71200" = "55-59", "71300" = "60-64", "71400" = "65-69", "71500" = "70-74",
-  "71600" = "75-79", "71700" = "80-84", "71800" = "85-89", "71900" = "90-94", "22000" = "95+"
+  "70100" = "0-19", "70200" = "0-19", "70300" = "0-19", "70400" = "0-19", "70500" = "20-39",
+  "70600" = "20-39", "70700" = "20-39", "70800" = "20-39", "70900" = "40-59", "71000" = "40-59",
+  "71100" = "40-59", "71200" = "40-59", "71300" = "60-79", "71400" = "60-79", "71500" = "60-79",
+  "71600" = "60-79", "71700" = "80+", "71800" = "80+", "71900" = "80+", "22000" = "80+"
 )
 
 kenmerken_map <- c(
@@ -63,7 +68,7 @@ plot_filters <- list(
   p4 = "RegioS %in% province_map[1:12] & Perioden == '2023jj00' & KenmerkenVanHuishoudens == 1050010 & !is.na(GestandaardiseerdInkomen) & !is.na(RegioS)",
   p5 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(Jaar) & Jaar >= 2011 & !is.na(HousePriceIndex) & !is.na(IncomeLevelIndex)",
   p6 = "RegioS == 'Nederland' & KenmerkenVanHuishoudens == 1050010 & !is.na(Jaar) & Jaar >= 2011 & !is.na(Ratio)",
-  p7 = "RegioS == 'Nederland' & Perioden %in% years_to_plot & Geslacht == 'T001038' & !is.na(OpZichzelfWonend) & !is.na(AgeGroup)",
+  p7 = "RegioS == 'Nederland' & is.na(KenmerkenVanHuishoudens) & is.na(Populatie) & Geslacht == 'T001038' & !is.na(OpZichzelfWonend) & !is.na(AgeGroup) & Jaar == 2024",
   p8 = "RegioS == 'Nederland' & !is.na(HousingType) & Geslacht == 'T001038' & !is.na(GestandaardiseerdInkomen) & !is.na(Jaar)",
   p9 = "RegioS == 'Nederland' & !is.na(Jaar) & !is.na(HuisPrijs)"
 )
@@ -92,33 +97,23 @@ theme_map_clean <- theme_minimal() +
 
 # Title Page
 
-Title Page
+Programming for Economists Group 6
 
-Student names: Daan Blok,
+Student names: Daan Blok (2821386), Daniel ten Broeke (), Dries A. M. Berns (), Kon Ntovas (), Mariah P. Mendoza (), Sofie A. Hopman (2745673), Vlad A. Partenie () 
 
 Tutorial group: Tutorial 1 Group 6
 
 Tutorial lecturer: Jack Fitzgerald
 
-# Part 1 - Identify a Social Problem
+#1 Identifying a Social Problem
 
-Use APA referencing throughout your document. [Here's a link to some explanation.](https://www.mendeley.com/guides/apa-citation-guide/)
-
-The housing market in the Netherlands is currently facing significant problems, especially for young people. There are long waiting lists for rental housing, and in addition, there are high rental prices in the private sector. The prices of owner-occupied homes have risen sharply in recent years, making it increasingly difficult for young people and young adults to find affordable housing (Wat Zijn Gevolgen van de Onzekere Woningmarkt Voor Jongeren? \| Nederlands Jeugdinstituut, z.d.-b). This has led to a historic low in the number of young people who have purchased a home. According to the CBS, there is a shortage of approximately 315,000 homes in the Netherlands (CBS Statline, z.d.). The research by Wiesel et al. (2021) highlights that there are significant differences between generations regarding income inequality. Baby boomers have benefited from relatively affordable housing, while younger generations, such as Generation X and millennials, face greater challenges in covering housing costs. This has direct implications for their economic opportunities. The rising house prices and increasing housing costs have contributed to the growing inequality in the housing market. Households with middle incomes are also experiencing increasing problems. Many of these households fall between the cracks, as their income is too high for social rental housing but too low for the private rental market. This results in limited access to affordable housing (Schilder et al., z.d.-b). Although the social rental sector in the Netherlands offers affordable rents in absolute terms, the pressure on this sector is increasing, particularly due to the growing number of households that rely on social housing (Schilder et al., z.d.-b). The combination of these factors makes the situation in the housing market particularly urgent and calls for attention from policymakers to address the issues and ensure access to affordable housing for young people and other vulnerable groups.
-
-## 1.1 Describe the Social Problem
-
-Include the following:
-
--   Why is this relevant?
-
--   ...
+The housing market in the Netherlands is currently facing significant problems, especially for young people. There are long waiting lists for rental housing, and in addition, there are high rental prices in the private sector. The prices of owner-occupied homes have risen sharply in recent years, making it increasingly difficult for young people and young adults to find affordable housing (Wat Zijn Gevolgen van de Onzekere Woningmarkt Voor Jongeren? \| Nederlands Jeugdinstituut, z.d.-b). This has led to a historic low in the number of young people who have purchased a home. According to the CBS, there is a shortage of approximately 315,000 homes in the Netherlands (CBS Statline, z.d.). Furthermore the research by Wiesel et al. (2021) highlights that there are significant differences between generations regarding income inequality. Baby boomers have benefited from relatively affordable housing, while younger generations, such as Generation X and millennials, face greater challenges in covering housing costs. This has direct implications for their economic opportunities. The rising house prices and increasing housing costs have contributed to the growing inequality in the housing market. Households with middle incomes are also experiencing increasing problems. Many of these households fall between the cracks, as their income is too high for social rental housing but too low for the private rental market. This results in limited access to affordable housing (Schilder et al., z.d.-b). Although the social rental sector in the Netherlands offers affordable rents in absolute terms, the pressure on this sector is increasing, particularly due to the growing number of households that rely on social housing (Schilder et al., z.d.-b). The combination of these factors makes the situation in the housing market particularly urgent and calls for attention from policymakers to address the issues and ensure access to affordable housing for young people and other vulnerable groups.
 
 # Part 2 - Data Sourcing
 
 ## 2.1 Load in the data
 
-```{r loading_data}
+```{r loading_data, echo = TRUE}
 load_cbs_raw <- function(table_id) {
   cbs_get_data(table_id, typed = FALSE)
 }
@@ -126,7 +121,7 @@ load_cbs_raw <- function(table_id) {
 raw_tables <- suppressWarnings(map(table_ids, load_cbs_raw))
 ```
 
-Three external datasets are retrieved directly from CBS via the internet, using a predefined vector of dataset codes to automate access and ensure reproducibility. The specific codes used are listed in the corresponding vector.
+Three external datasets are retrieved directly from CBS via the internet, using a predefined vector of dataset codes to automate access and ensure reproducibility. The specific codes used are listed in the corresponding vector. These datasets are compiled by CBS using a combination of integral administrative sources and, in some cases, survey data. For example, the Integrale inkomens- en vermogensstatistiek (86004NED) is based on comprehensive records from institutions such as the Belastingdienst (Dutch Tax Authority), Dienst Uitvoering Onderwijs (DUO), Uitvoeringsinstituut Werknemersverzekeringen (UWV), and the Basisregistratie Personen (BRP). The Huizenprijsindex bestaande koopwoningen (83625NED) relies on transaction data from the Kadaster, which is updated monthly and considered immediately final. Meanwhile, the Stelsel van Sociaal-statistische Bestanden (71488NED) draws primarily on administrative registrations, but also incorporates data from the Enquête Beroepsbevolking (EBB – Labour Force Survey). These sources ensure the statistical accuracy and reliability of the CBS datasets used in this analysis.
 
 ## 2.2 & 2.3 Short summary of the dataset and the variables included described
 
@@ -286,8 +281,15 @@ p6 <- merged_df$p6 %>%
   scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
   labs(title = "Ratio of House Prices to Standardised Income", x = "Year", y = "Ratio")
 
+p8 <- merged_df$p8 %>%
+  group_by(Jaar, HousingType) %>%
+  summarise(AverageIncome = mean(GestandaardiseerdInkomen, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = Jaar, y = AverageIncome, color = HousingType, linetype = HousingType)) +
+  geom_line(linewidth = 1.2) +
+  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
+  labs(title = "Average Standardised Income by Housing Type", x = "Year", y = "Income (€ x 1,000)", color = "Housing Type", linetype = "Housing Type")
 
-list(p1, p3, p5, p6) %>% walk(~ print(.x + my_theme))
+list(p1, p3, p5, p6, p8) %>% walk(~ print(.x + my_theme))
 ```
 
 The affordability of housing in the Netherlands has undergone significant changes over time, as illustrated by the four temporal visualisations. Figure 1 presents the development of average house prices from 1995 to 2023, showing a steady upward trend, with particularly sharp increases after 2015. Figure 2 complements this by depicting the evolution of average standardised disposable income since 2011, which shows only moderate growth in comparison.
@@ -333,19 +335,12 @@ This visualisation aligns with the topic of housing affordability by highlightin
 ```{r visualise_subpopulations}
 p7 <- merged_df$p7 %>%
   mutate(Year = factor(YearStr, levels = sort(unique(substr(years_to_plot, 1, 4))))) %>%
-  ggplot(aes(x = AgeGroup, y = OpZichzelfWonend, color = Year, group = Year)) +
-  geom_line(linewidth = 0.5) +
+  ggplot(aes(x = AgeGroup, y = OpZichzelfWonend, fill = AgeGroup)) +
+  geom_boxplot() +
   labs(title = "Share of Individuals Living Indepent by Age Group", x = "Age Group (Years)", y = "Individuals Living Indepent (%)")
 
-p8 <- merged_df$p8 %>%
-  group_by(Jaar, HousingType) %>%
-  summarise(AverageIncome = mean(GestandaardiseerdInkomen, na.rm = TRUE), .groups = "drop") %>%
-  ggplot(aes(x = Jaar, y = AverageIncome, color = HousingType, linetype = HousingType)) +
-  geom_line(linewidth = 1.2) +
-  scale_x_continuous(breaks = seq(2011, 2023, by = 2)) +
-  labs(title = "Average Standardised Income by Housing Type", x = "Year", y = "Income (€ x 1,000)", color = "Housing Type", linetype = "Housing Type")
 
-list(p7, p8) %>% walk(~ print(.x + my_theme))
+list(p7) %>% walk(~ print(.x + my_theme))
 ```
 
 The first visualisation shows the percentage of individuals living alone across different age groups for three reference years between 2004 and 2024. Notably, the proportion of young adults (aged 15–65) living independently has steadily declined over time, while the share of older adults (65 and above) living on themselves has increased. This trend suggests that fewer young people are establishing independent households, potentially delaying homeownership, while older adults are more likely to remain in their homes longer. Both phenomena significantly impact the housing market by reducing available housing turnover for younger generations and increasing demand among older age groups.
